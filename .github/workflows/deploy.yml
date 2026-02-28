@@ -29,7 +29,7 @@ jobs:
             # 0. BASIC VARS – EDIT THESE
             # -----------------------------
             APP_DIR="/home/ubuntu/BethunanaAcademy"
-            REPO_URL="https://github.com/Teboho02/BethunanaAcademyVideos.git"
+            REPO_URL="https://${{ secrets.GH_PAT }}@github.com/Teboho02/BethunanaAcademyVideos.git"
             BRANCH="main"
 
             DB_NAME="BethunanaAcademy"
@@ -48,8 +48,10 @@ jobs:
             sudo apt-get update -y
             echo ">>> [1/10] apt-get update complete"
 
-            sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
             echo ">>> [1/10] apt-get upgrade complete"
+            # Safer - only unattended/security upgrades
+            sudo apt-get install -y unattended-upgrades
+            sudo unattended-upgrade --dry-run  # or just skip this entirely
 
             # -----------------------------
             # 2. BASIC DEPENDENCIES
