@@ -1,108 +1,83 @@
-name: Setup Server & Deploy BethunanaAcademy
+name: Deploy BethunanaAcademy
 
 on:
   push:
     branches:
-      - main   # change if you use a different deploy branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (not strictly required for SSH, but harmless)
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: SSH & setup server + deploy
+      - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_HOST }}       # e.g. 54.x.x.x
-          username: ${{ secrets.SERVER_USER }}   # e.g. ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}     # your Lightsail .pem contents
-          port: ${{ secrets.SERVER_PORT }}       # usually 22
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
           script: |
             set -e
 
-            echo ">>> [START] SSH connection established, beginning deploy script"
+            echo ">>> [START] SSH connection established, beginning deploy"
 
             # -----------------------------
-            # 0. BASIC VARS – EDIT THESE
+            # 0. BASIC VARS
             # -----------------------------
             APP_DIR="/home/ubuntu/BethunanaAcademy"
             REPO_URL="https://${{ secrets.GH_PAT }}@github.com/Teboho02/BethunanaAcademyVideos.git"
             BRANCH="main"
+            APP_NAME="BethunanaAcademy"
 
             DB_NAME="BethunanaAcademy"
             DB_USER="Teboho"
-            DB_PASS="${{ secrets.DB_PASSWORD || 'Tebza@02' }}"
-
-            echo ">>> [VARS] APP_DIR=${APP_DIR}"
-            echo ">>> [VARS] REPO_URL=${REPO_URL}"
-            echo ">>> [VARS] BRANCH=${BRANCH}"
-            echo ">>> [VARS] DB_NAME=${DB_NAME}, DB_USER=${DB_USER}"
+            DB_PASS="${{ secrets.DB_PASSWORD }}"
 
             # -----------------------------
-            # 1. SYSTEM UPDATE
+            # 1. INSTALL MISSING DEPENDENCIES ONLY
             # -----------------------------
-            echo ">>> [1/10] Starting system package update..."
-            sudo apt-get update -y
-            echo ">>> [1/10] apt-get update complete"
 
-            echo ">>> [1/10] apt-get upgrade complete"
-            # Safer - only unattended/security upgrades
-            sudo apt-get install -y unattended-upgrades
-            sudo unattended-upgrade --dry-run  # or just skip this entirely
+            # Node.js
+            if ! command -v node &> /dev/null; then
+              echo ">>> Node.js not found, installing..."
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+            echo ">>> Node: $(node --version) | npm: $(npm --version)"
 
-            # -----------------------------
-            # 2. BASIC DEPENDENCIES
-            # -----------------------------
-            echo ">>> [2/10] Installing git, curl, build-essential..."
-            sudo apt-get install -y git curl build-essential
-            echo ">>> [2/10] git version: $(git --version)"
-            echo ">>> [2/10] curl version: $(curl --version | head -1)"
-            echo ">>> [2/10] Basic dependencies installed successfully"
+            # PM2
+            if ! command -v pm2 &> /dev/null; then
+              echo ">>> PM2 not found, installing..."
+              sudo npm install -g pm2
+            fi
+            echo ">>> PM2: $(pm2 --version)"
 
-            # -----------------------------
-            # 3. NGINX
-            # -----------------------------
-            echo ">>> [3/10] Installing Nginx..."
-            sudo apt-get install -y nginx
-            echo ">>> [3/10] Nginx installed, enabling and starting service..."
-            sudo systemctl enable nginx
-            sudo systemctl start nginx
-            echo ">>> [3/10] Nginx status: $(sudo systemctl is-active nginx)"
+            # Nginx
+            if ! command -v nginx &> /dev/null; then
+              echo ">>> Nginx not found, installing..."
+              sudo apt-get install -y nginx
+              sudo systemctl enable nginx
+              sudo systemctl start nginx
+            fi
+            echo ">>> Nginx: $(sudo systemctl is-active nginx)"
 
-            # -----------------------------
-            # 4. MYSQL
-            # -----------------------------
-            echo ">>> [4/10] Installing MySQL Server..."
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
-            echo ">>> [4/10] MySQL installed, enabling and starting service..."
-            sudo systemctl enable mysql
-            sudo systemctl start mysql
-            echo ">>> [4/10] MySQL status: $(sudo systemctl is-active mysql)"
+            # MySQL
+            if ! command -v mysql &> /dev/null; then
+              echo ">>> MySQL not found, installing..."
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+              sudo systemctl enable mysql
+              sudo systemctl start mysql
+            fi
+            echo ">>> MySQL: $(sudo systemctl is-active mysql)"
 
             # -----------------------------
-            # 5. NODE.JS
+            # 2. DATABASE SETUP (idempotent)
             # -----------------------------
-            echo ">>> [5/10] Setting up NodeSource repo for Node.js 20..."
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            echo ">>> [5/10] NodeSource repo configured, installing Node.js..."
-            sudo apt-get install -y nodejs
-            echo ">>> [5/10] Node version: $(node --version)"
-            echo ">>> [5/10] npm version: $(npm --version)"
-
-            # -----------------------------
-            # 6. PM2
-            # -----------------------------
-            echo ">>> [6/10] Installing PM2 globally..."
-            sudo npm install -g pm2
-            echo ">>> [6/10] PM2 version: $(pm2 --version)"
-
-            # -----------------------------
-            # 7. DATABASE SETUP
-            # -----------------------------
-            echo ">>> [7/10] Creating MySQL database '${DB_NAME}' and user '${DB_USER}'..."
+            echo ">>> Ensuring database and user exist..."
             sudo mysql <<EOF
             CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
               CHARACTER SET utf8mb4
@@ -111,79 +86,51 @@ jobs:
             GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
             FLUSH PRIVILEGES;
             EOF
-            echo ">>> [7/10] Database and user created/verified successfully"
+            echo ">>> Database ready"
 
             # -----------------------------
-            # 8. APP CODE
+            # 3. PULL LATEST CODE
             # -----------------------------
-            echo ">>> [8/10] Preparing application directory: ${APP_DIR}"
-            if [ ! -d "${APP_DIR}" ]; then
-              echo ">>> [8/10] Directory does not exist, creating it..."
-              mkdir -p "${APP_DIR}"
-              chown ${USER}:${USER} "${APP_DIR}"
-              echo ">>> [8/10] Directory created"
-            else
-              echo ">>> [8/10] Directory already exists, skipping creation"
-            fi
-
+            echo ">>> Pulling latest code..."
             if [ ! -d "${APP_DIR}/.git" ]; then
-              echo ">>> [8/10] No git repo found, cloning for the first time..."
+              echo ">>> No repo found, cloning..."
               git clone "${REPO_URL}" "${APP_DIR}"
-              echo ">>> [8/10] Clone complete"
             else
-              echo ">>> [8/10] Existing repo found, pulling latest changes from origin/${BRANCH}..."
               cd "${APP_DIR}"
               git fetch origin
-              echo ">>> [8/10] Fetch complete, resetting to origin/${BRANCH}..."
               git reset --hard "origin/${BRANCH}"
-              echo ">>> [8/10] Reset complete. Current commit: $(git log -1 --oneline)"
+              echo ">>> Updated to: $(git log -1 --oneline)"
             fi
 
             cd "${APP_DIR}"
-            echo ">>> [8/10] Working directory: $(pwd)"
 
             # -----------------------------
-            # 9. INSTALL DEPS & BUILD
+            # 4. INSTALL DEPS & BUILD FRONTEND
             # -----------------------------
-            echo ">>> [9/10] Installing root npm dependencies..."
+            echo ">>> Installing root dependencies..."
             npm install
-            echo ">>> [9/10] Root npm install complete"
 
-            echo ">>> [9/10] Running root build step (npm run build)..."
+            echo ">>> Building frontend..."
             npm run build
-            echo ">>> [9/10] Root build complete"
 
-            echo ">>> [9/10] Moving into backend directory..."
-            cd backend
-            echo ">>> [9/10] Now in: $(pwd)"
-
-            echo ">>> [9/10] Installing backend npm dependencies..."
+            # -----------------------------
+            # 5. INSTALL BACKEND DEPS
+            # -----------------------------
+            echo ">>> Installing backend dependencies..."
+            cd "${APP_DIR}/backend"
             npm install
-            echo ">>> [9/10] Backend npm install complete"
 
             # -----------------------------
-            # 10. PM2 START / RESTART
+            # 6. RESTART APP WITH PM2
             # -----------------------------
-            echo ">>> [10/10] Starting or restarting app with PM2..."
-            APP_NAME="BethunanaAcademy"
-
+            echo ">>> Restarting app with PM2..."
             if pm2 describe "${APP_NAME}" > /dev/null 2>&1; then
-              echo ">>> [10/10] Existing PM2 process found, restarting '${APP_NAME}'..."
               pm2 restart "${APP_NAME}"
             else
-              echo ">>> [10/10] No existing PM2 process, starting '${APP_NAME}' fresh..."
               pm2 start npm --name "${APP_NAME}" -- run start
+              pm2 save
+              pm2 startup systemd -u ${USER} --hp /home/${USER} || true
             fi
 
-            echo ">>> [10/10] PM2 process list:"
             pm2 list
-
-            echo ">>> [10/10] Saving PM2 process list..."
-            pm2 save
-            echo ">>> [10/10] PM2 save complete"
-
-            echo ">>> [10/10] Configuring PM2 startup on reboot..."
-            pm2 startup systemd -u ${USER} --hp /home/${USER} || true
-            echo ">>> [10/10] PM2 startup configured (or already set)"
-
-            echo ">>> [DONE] Deploy script finished successfully!"
+            echo ">>> [DONE] Deploy complete!"
