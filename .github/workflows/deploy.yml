@@ -1,54 +1,120 @@
-name: Deploy to Ubuntu Server
+name: Setup Server & Deploy BethunanaAcademy
 
 on:
   push:
     branches:
-      - main   # change if you use a different branch for prod
+      - main   # change if you use a different deploy branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout (not strictly required for SSH, but harmless)
         uses: actions/checkout@v4
 
-      - name: Use Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      # Deploy via SSH to your server
-      - name: SSH & deploy on server
+      - name: SSH & setup server + deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
+          host: ${{ secrets.SERVER_HOST }}       # e.g. 54.x.x.x
+          username: ${{ secrets.SERVER_USER }}   # e.g. ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}     # your Lightsail .pem contents
+          port: ${{ secrets.SERVER_PORT }}       # usually 22
           script: |
-            cd /home/ubuntu/BethunanaAcademy
+            set -e
 
-            # Get latest code
-            git fetch origin
-            #get the new updated code
-            git reset --hard origin/main
+            # -----------------------------
+            # 0. BASIC VARS – EDIT THESE
+            # -----------------------------
+            APP_DIR="/home/ubuntu/BethunanaAcademy"
+            REPO_URL="https://github.com/Teboho02/BethunanaAcademyVideos.git"
+            BRANCH="main"
 
-            # Install deps & build
-            npm install --production=false
-            # If monorepo, you can cd into backend/frontend and run commands there.
+            # DB credentials (you can hard-code or better: use secrets and echo them in via envs)
+            DB_NAME="BethunanaAcademy"
+            DB_USER="Teboho"
+            DB_PASS="${{ secrets.DB_PASSWORD || 'Tebza@02' }}"
 
-            # If backend uses build step:
-            npm run build
+            echo "=== Updating system packages ==="
+            sudo apt-get update -y
+            sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+
+            echo "=== Installing dependencies: git, curl, build-essential ==="
+            sudo apt-get install -y git curl build-essential
+
+            echo "=== Installing Nginx ==="
+            sudo apt-get install -y nginx
+            sudo systemctl enable nginx
+            sudo systemctl start nginx
+
+            echo "=== Installing MySQL Server ==="
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+            sudo systemctl enable mysql
+            sudo systemctl start mysql
+
+            echo "=== Installing Node.js 20 & npm ==="
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+
+            echo "=== Installing PM2 globally ==="
+            sudo npm install -g pm2
+
+            echo "=== Creating MySQL database and user ==="
+            sudo mysql <<EOF
+            CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
+              CHARACTER SET utf8mb4
+              COLLATE utf8mb4_unicode_ci;
+            CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+            GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
+            FLUSH PRIVILEGES;
+            EOF
+
+            echo "=== Getting application code ==="
+            # Create app directory if it doesn't exist
+            if [ ! -d "${APP_DIR}" ]; then
+              mkdir -p "${APP_DIR}"
+              chown ${USER}:${USER} "${APP_DIR}"
+            fi
+
+            if [ ! -d "${APP_DIR}/.git" ]; then
+              echo "Cloning repo for the first time..."
+              git clone "${REPO_URL}" "${APP_DIR}"
+            else
+              echo "Repo exists, pulling latest changes..."
+              cd "${APP_DIR}"
+              git fetch origin
+              git reset --hard "origin/${BRANCH}"
+            fi
+
+            cd "${APP_DIR}"
+
+            echo "=== Installing Node dependencies ==="
+            # If your backend is in a 'backend' folder, uncomment this:
+            # cd backend
+
+            npm install
+
+            # If you have a build step for backend or frontend, run it here
+             npm run build
 
             cd backend
 
-            npm run install
+            npm install
 
+            
 
+            echo "=== Starting or restarting app with PM2 ==="
+            # Adjust entry command to your app (e.g. app.js, server.js, or npm start)
+            APP_NAME="BethunanaAcademy"
 
-            # Restart backend with PM2
-            pm2 restart  BethunanaAcademy || pm2 start npm --name BethunanaAcademy -- run start
+            # Example if you use npm start at project root:
+            pm2 restart "${APP_NAME}" || pm2 start npm --name "${APP_NAME}" -- run start
 
-            # Save PM2 state
+            # Example if you use a file as entry:
+            # pm2 restart "${APP_NAME}" || pm2 start server.js --name "${APP_NAME}"
+
+            echo "=== Saving PM2 process list ==="
             pm2 save
+
+            echo "=== Enabling PM2 startup on reboot ==="
+            pm2 startup systemd -u ${USER} --hp /home/${USER} || true
