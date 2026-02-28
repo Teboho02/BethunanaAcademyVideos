@@ -11,6 +11,7 @@ const requiredEnvVars = [
   'MYSQL_PASSWORD',
   'MYSQL_DATABASE'
 ];
+// Check for missing environment variables
 
 for (const key of requiredEnvVars) {
   if (!process.env[key]) {
