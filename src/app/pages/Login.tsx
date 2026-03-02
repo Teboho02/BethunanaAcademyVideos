@@ -191,10 +191,10 @@ export function Login({ onLogin }: LoginProps) {
               </a>
               <span className="text-xs text-white/40">Follow us</span>
               <a
-                href="mailto:gift@bethunanaacademy.co.za"
+                href="mailto:magiftana22@gmail.com"
                 className="text-xs text-white/50 hover:text-white transition-colors"
               >
-                gift@bethunanaacademy.co.za
+                magiftana22@gmail.com
               </a>
               <a
                 href="tel:+27660936871"
