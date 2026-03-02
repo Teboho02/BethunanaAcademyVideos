@@ -27,10 +27,7 @@ export function Login({ onLogin }: LoginProps) {
   const [studentNumber, setStudentNumber] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const adminAvatar = `https://api.dicebear.com/7.x/personas/svg?seed=admin`;
-
-  const buildAvatar = (seed: string) =>
-    `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(seed)}`;
+  const avatar = '/person.jpg';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +43,7 @@ export function Login({ onLogin }: LoginProps) {
         onLogin({
           username: result.studentNumber,
           role: 'admin',
-          avatar: adminAvatar,
+          avatar: avatar,
           studentNumber: result.studentNumber,
           name: result.name,
           surname: result.surname,
@@ -55,7 +52,7 @@ export function Login({ onLogin }: LoginProps) {
         onLogin({
           username: result.studentNumber,
           role: 'student',
-          avatar: buildAvatar(result.studentNumber),
+          avatar: avatar,
           grade: result.grade,
           studentNumber: result.studentNumber,
           name: result.name,

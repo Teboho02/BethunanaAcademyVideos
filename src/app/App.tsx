@@ -12,18 +12,10 @@ interface User {
   surname?: string;
 }
 
-const ADMIN_AVATAR_URL = '/avatars/admin-male.svg';
-
-const normalizeUser = (user: User): User => {
-  if (user.role !== 'admin') {
-    return user;
-  }
-
-  return {
-    ...user,
-    avatar: ADMIN_AVATAR_URL
-  };
-};
+const normalizeUser = (user: User): User => ({
+  ...user,
+  avatar: '/person.jpg',
+});
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
