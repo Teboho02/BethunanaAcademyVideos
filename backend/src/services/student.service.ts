@@ -34,9 +34,9 @@ const toStudent = (row: StudentRow): Student => ({
 });
 
 const buildStudentNumber = (): string => {
-  const year = new Date().getFullYear();
-  const randomPart = Math.floor(100000 + Math.random() * 900000);
-  return `BNA${year}${randomPart}`;
+  const prefix = Math.random() < 0.5 ? 2 : 3;
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}${suffix}`;
 };
 
 const findStudentById = async (studentId: string): Promise<Student | null> => {
