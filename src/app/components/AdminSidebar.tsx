@@ -40,8 +40,8 @@ export function AdminSidebar({ user, onLogout }: AdminSidebarProps) {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <Link to="/home" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground">
-            <span className="text-lg font-bold">B</span>
+          <div className="h-9 w-9 rounded-full overflow-hidden shrink-0">
+            <img src="/bethunanalogojpg.jpg" alt="Bethunana Academy" className="h-full w-full object-cover" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold leading-none">Bethunana</span>

@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../../config/env.js';
 import { HttpError } from '../../types/index.js';
@@ -70,4 +70,9 @@ export const createLocalVideoRangeStream = (
 export const createLocalFileStream = (storageKey: string) => {
   const absolutePath = resolveLocalVideoPath(storageKey);
   return createReadStream(absolutePath);
+};
+
+export const deleteLocalFile = async (storageKey: string): Promise<void> => {
+  const absolutePath = resolveLocalVideoPath(storageKey);
+  await unlink(absolutePath);
 };

@@ -41,8 +41,8 @@ export function Header({ user, onLogout, variant = 'default' }: HeaderProps) {
           </div>
         ) : (
           <Link to="/home" className="flex items-center space-x-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-md">
-              <span className="text-xl font-bold">B</span>
+            <div className="h-10 w-10 rounded-full overflow-hidden shadow-md shrink-0">
+              <img src="/bethunanalogojpg.jpg" alt="Bethunana Academy" className="h-full w-full object-cover" />
             </div>
             <div className="hidden sm:flex flex-col">
               <span className="text-lg font-bold leading-none text-primary">

@@ -23,8 +23,8 @@ const parseErrorMessage = async (response: Response): Promise<string> => {
 };
 
 export async function loginWithStudentNumber(studentNumber: string): Promise<
-  | { role: 'admin'; studentNumber: string }
-  | { role: 'student'; studentNumber: string; grade: number }
+  | { role: 'admin'; studentNumber: string; name?: string; surname?: string }
+  | { role: 'student'; studentNumber: string; grade: number; name?: string; surname?: string }
 > {
   const response = await fetch(`${AUTH_API_BASE}/login`, {
     method: 'POST',
@@ -43,17 +43,19 @@ export async function loginWithStudentNumber(studentNumber: string): Promise<
   const role = payload.data?.role;
   const resolvedStudentNumber = payload.data?.studentNumber;
   const resolvedGrade = Number(payload.data?.grade);
+  const name = payload.data?.name;
+  const surname = payload.data?.surname;
 
   if (!resolvedStudentNumber || (role !== 'student' && role !== 'admin')) {
     throw new Error('Unexpected login response');
   }
 
   if (role === 'admin') {
-    return { role: 'admin', studentNumber: resolvedStudentNumber };
+    return { role: 'admin', studentNumber: resolvedStudentNumber, name, surname };
   }
 
   if (!Number.isFinite(resolvedGrade)) {
     throw new Error('Unexpected login response');
   }
-  return { role: 'student', studentNumber: resolvedStudentNumber, grade: resolvedGrade };
+  return { role: 'student', studentNumber: resolvedStudentNumber, grade: resolvedGrade, name, surname };
 }

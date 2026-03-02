@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /$
+Allow: /login
+
+Disallow: /home
+Disallow: /subject/
+Disallow: /topic/
+Disallow: /profile
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://bethunanaacademy.co.za/sitemap.xml

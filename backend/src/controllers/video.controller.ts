@@ -1,7 +1,7 @@
 import multer from 'multer';
 import type { RequestHandler } from 'express';
 import { env } from '../config/env.js';
-import { uploadVideoAndRegister, listVideoAssets, getVideoAssetById } from '../services/videoUpload.service.js';
+import { uploadVideoAndRegister, listVideoAssets, getVideoAssetById, deleteVideoAsset } from '../services/videoUpload.service.js';
 import { buildVideoStreamPayload } from '../services/videoStream.service.js';
 import { createLocalFileStream, getLocalVideoSize } from '../services/storage/localVideoStorage.service.js';
 import { getS3Object } from '../services/storage/s3.service.js';
@@ -213,6 +213,18 @@ export const getVideoAnalyticsHandler: RequestHandler = async (req, res, next) =
       success: true,
       data: await getVideoAnalytics(videoId)
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteVideoHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const videoId = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    if (!videoId) throw new HttpError(400, 'Video id is required');
+
+    await deleteVideoAsset(videoId);
+    res.status(200).json({ success: true, message: 'Video deleted successfully' });
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -110,6 +111,12 @@ export const getS3ObjectRange = async (
   }
 
   return result.Body as Readable;
+};
+
+export const deleteS3Object = async (key: string): Promise<void> => {
+  ensureS3Configured();
+  const s3 = getS3Client();
+  await s3.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
 };
 
 export const getS3Object = async (

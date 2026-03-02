@@ -13,6 +13,8 @@ interface HomeProps {
   user: {
     role: 'student' | 'admin';
     grade?: number;
+    name?: string;
+    surname?: string;
   };
 }
 
@@ -34,7 +36,7 @@ export function Home({ user }: HomeProps) {
   return (
     <div className="min-h-screen bg-background">
       <PageHero
-        title="Welcome to Bethunana Academy"
+        title={user.name && user.surname ? `Welcome, ${user.name} ${user.surname}` : 'Welcome to Bethunana Academy'}
         description="Select a grade and subject to explore topics and watch educational videos"
       >
         <div className="flex flex-wrap gap-2 mt-2">

@@ -8,6 +8,8 @@ interface User {
   avatar: string;
   grade?: number;
   studentNumber?: string;
+  name?: string;
+  surname?: string;
 }
 
 const ADMIN_AVATAR_URL = '/avatars/admin-male.svg';

@@ -245,6 +245,15 @@ export const listVideoAssets = async (): Promise<VideoAsset[]> => {
   return rows.map(rowToVideoAsset);
 };
 
+export const deleteVideoAsset = async (videoId: string): Promise<void> => {
+  const pool = getMySqlPool();
+  const [result] = await pool.query<import('mysql2').ResultSetHeader>(
+    'DELETE FROM videos WHERE id = ?',
+    [videoId]
+  );
+  if (result.affectedRows === 0) throw new HttpError(404, 'Video not found');
+};
+
 export const getVideoAssetById = async (videoId: string): Promise<VideoAsset | null> => {
   await ensureVideoThumbnailColumns();
   const pool = getMySqlPool();

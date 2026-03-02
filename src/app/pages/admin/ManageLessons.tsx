@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Trash2, Edit, Search, Upload } from 'lucide-react';
+import { Trash2, Edit, Search, Upload, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader } from '../../components/ui/card';
@@ -11,13 +11,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useCatalog } from '../../hooks/useCatalog';
 import { listVideoAnalytics, type VideoAnalytics } from '../../services/videoInsights';
+import { deleteVideo } from '../../services/contentAdmin';
+import { invalidateCatalogCache } from '../../services/contentCatalog';
 
 export function ManageLessons() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [gradeFilter, setGradeFilter] = useState('all');
   const [analytics, setAnalytics] = useState<Record<string, VideoAnalytics>>({});
-  const { catalog, loading, error } = useCatalog();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const { catalog, loading, error, refetch } = useCatalog();
 
   const videos = catalog?.videos ?? [];
   const subjects = catalog?.subjects ?? [];
@@ -70,6 +74,12 @@ export function ManageLessons() {
       {error && (
         <p className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           Failed to load lessons: {error}
+        </p>
+      )}
+
+      {deleteError && (
+        <p className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {deleteError}
         </p>
       )}
 
@@ -196,9 +206,25 @@ export function ManageLessons() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                  onClick={() => alert('Delete functionality is not implemented yet.')}
+                                  disabled={deletingId === video.id}
+                                  onClick={async () => {
+                                    if (!confirm(`Delete "${video.title}"? This cannot be undone.`)) return;
+                                    setDeletingId(video.id);
+                                    setDeleteError('');
+                                    try {
+                                      await deleteVideo(video.id);
+                                      invalidateCatalogCache();
+                                      await refetch();
+                                    } catch (err) {
+                                      setDeleteError(err instanceof Error ? err.message : 'Failed to delete lesson.');
+                                    } finally {
+                                      setDeletingId(null);
+                                    }
+                                  }}
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  {deletingId === video.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4" />}
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Delete lesson</TooltipContent>
