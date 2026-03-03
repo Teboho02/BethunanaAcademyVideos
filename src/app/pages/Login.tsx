@@ -27,6 +27,7 @@ export function Login({ onLogin }: LoginProps) {
   const [studentNumber, setStudentNumber] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showMobileForm, setShowMobileForm] = useState(false);
   const avatar = '/person.jpg';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,11 +81,9 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-screen w-full flex relative bg-[url('/gift.jpeg')] bg-cover bg-top lg:bg-none">
-      {/* Mobile background overlay */}
-      <div className="absolute inset-0 bg-[#0F172A]/60 lg:hidden" />
 
       {/* ─── Left Panel ─── */}
-      <div className="hidden lg:flex lg:w-[55%] relative flex-col p-0 overflow-hidden">
+      <div className="flex w-full lg:w-[55%] relative flex-col p-0 overflow-hidden min-h-screen">
         {/* Full-bleed photo */}
         <div
           className="absolute inset-0 bg-cover bg-top"
@@ -98,7 +97,7 @@ export function Login({ onLogin }: LoginProps) {
         <div className="absolute inset-0 dot-pattern opacity-10" />
 
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between flex-1 p-12 xl:p-16">
+        <div className="relative z-10 flex flex-col justify-between flex-1 p-8 sm:p-12 xl:p-16">
           {/* Logo — top-left */}
           <div className="flex items-center gap-3">
             <div className="h-16 w-16 rounded-full overflow-hidden shadow-xl shrink-0">
@@ -163,52 +162,85 @@ export function Login({ onLogin }: LoginProps) {
               ))}
             </div>
 
+            {/* Mobile Login button */}
+            <div className="lg:hidden mb-6">
+              <Button
+                onClick={() => setShowMobileForm(true)}
+                className="w-full h-12 text-base font-semibold"
+                size="lg"
+              >
+                <span className="flex items-center gap-2">
+                  Login
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </Button>
+            </div>
+
             {/* Social links */}
-            <div className="flex items-center gap-3">
-              <a
-                href="https://web.facebook.com/hayibethunana/?_rdc=1&_rdr#"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/10 backdrop-blur-sm text-white/70 hover:bg-white/20 hover:text-white transition-colors"
-              >
-                {/* Facebook icon */}
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                  <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
-                </svg>
-              </a>
-              <a
-                href="https://www.tiktok.com/@giftbozekana1?is_from_webapp=1&sender_device=pc"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/10 backdrop-blur-sm text-white/70 hover:bg-white/20 hover:text-white transition-colors"
-              >
-                {/* TikTok icon */}
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.95a8.16 8.16 0 0 0 4.77 1.52V7.02a4.85 4.85 0 0 1-1-.33z" />
-                </svg>
-              </a>
-              <span className="text-xs text-white/40">Follow us</span>
-              <a
-                href="mailto:magiftana22@gmail.com"
-                className="text-xs text-white/50 hover:text-white transition-colors"
-              >
-                magiftana22@gmail.com
-              </a>
-              <a
-                href="tel:+27660936871"
-                className="text-xs text-white/50 hover:text-white transition-colors"
-              >
-                066 093 6871
-              </a>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://web.facebook.com/hayibethunana/?_rdc=1&_rdr#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/10 backdrop-blur-sm text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                >
+                  {/* Facebook icon */}
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                    <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.tiktok.com/@giftbozekana1?is_from_webapp=1&sender_device=pc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="TikTok"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/10 backdrop-blur-sm text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                >
+                  {/* TikTok icon */}
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.95a8.16 8.16 0 0 0 4.77 1.52V7.02a4.85 4.85 0 0 1-1-.33z" />
+                  </svg>
+                </a>
+                <span className="text-xs text-white/40">Follow us</span>
+                <div className="hidden lg:flex items-center gap-3">
+                  <a
+                    href="mailto:magiftana22@gmail.com"
+                    className="text-xs text-white/50 hover:text-white transition-colors"
+                  >
+                    magiftana22@gmail.com
+                  </a>
+                  <a
+                    href="tel:+27660936871"
+                    className="text-xs text-white/50 hover:text-white transition-colors"
+                  >
+                    066 093 6871
+                  </a>
+                </div>
+              </div>
+              {/* Contact info — below icons on small screens, hidden on desktop (shown inline above) */}
+              <div className="flex items-center gap-3 lg:hidden">
+                <a
+                  href="mailto:magiftana22@gmail.com"
+                  className="text-xs text-white/50 hover:text-white transition-colors"
+                >
+                  magiftana22@gmail.com
+                </a>
+                <a
+                  href="tel:+27660936871"
+                  className="text-xs text-white/50 hover:text-white transition-colors"
+                >
+                  066 093 6871
+                </a>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Right Panel ─── */}
-      <div className="relative z-10 flex-1 flex flex-col bg-transparent lg:bg-background">
+      {/* ─── Right Panel (desktop only) ─── */}
+      <div className="hidden lg:flex relative z-10 flex-1 flex-col bg-background">
         {/* Form area */}
         <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
           <div className="w-full max-w-sm">
@@ -309,6 +341,110 @@ export function Login({ onLogin }: LoginProps) {
           &copy; {new Date().getFullYear()} Bethunana Academy. All rights reserved.
         </div>
       </div>
+
+      {/* ─── Mobile Login Modal ─── */}
+      {showMobileForm && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col bg-[#0F172A]/95 backdrop-blur-md">
+          {/* Header with back button */}
+          <div className="flex items-center gap-3 px-6 pt-10 pb-4">
+            <button
+              type="button"
+              onClick={() => { setShowMobileForm(false); setError(''); }}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 transition-colors"
+              aria-label="Back"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full overflow-hidden shrink-0">
+                <img src="/bethunanalogojpg.jpg" alt="Bethunana Academy" className="h-full w-full object-cover" />
+              </div>
+              <span className="text-sm font-semibold text-white">Bethunana Academy</span>
+            </div>
+          </div>
+
+          {/* Form content */}
+          <div className="flex-1 flex items-center justify-center px-6 pb-10">
+            <div className="w-full max-w-sm">
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-white/80">Welcome back</span>
+                </div>
+                <h2 className="text-3xl font-bold text-white">Sign in</h2>
+                <p className="text-white/70 mt-1">Enter your student number to continue</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="studentNumberMobile" className="text-sm text-white">Student Number</Label>
+                  <Input
+                    id="studentNumberMobile"
+                    type="text"
+                    placeholder="Student number"
+                    value={studentNumber}
+                    onChange={(e) => { setStudentNumber(e.target.value); if (error) setError(''); }}
+                    required
+                    autoFocus
+                    className="h-12 text-base"
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full h-12 text-base font-medium" size="lg" disabled={isLoading}>
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Signing in...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      Sign In
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    className="text-sm text-white/70 hover:text-white transition-colors"
+                    onClick={() => alert('Please contact your administrator')}
+                  >
+                    Forgot your student number?
+                  </button>
+                </div>
+              </form>
+
+              <Separator className="my-6 bg-white/20" />
+
+              <div className="rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                    <GraduationCap className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">New student?</p>
+                    <p className="text-xs text-white/70 mt-0.5 leading-relaxed">
+                      Ask your school administrator to enrol you. You'll receive a unique student number to sign in.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
