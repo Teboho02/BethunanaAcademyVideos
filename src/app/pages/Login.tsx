@@ -79,7 +79,10 @@ export function Login({ onLogin }: LoginProps) {
   ];
 
   return (
-    <div className="min-h-screen w-full flex">
+    <div className="min-h-screen w-full flex relative bg-[url('/gift.jpeg')] bg-cover bg-top lg:bg-none">
+      {/* Mobile background overlay */}
+      <div className="absolute inset-0 bg-[#0F172A]/60 lg:hidden" />
+
       {/* ─── Left Panel ─── */}
       <div className="hidden lg:flex lg:w-[55%] relative flex-col p-0 overflow-hidden">
         {/* Full-bleed photo */}
@@ -205,31 +208,20 @@ export function Login({ onLogin }: LoginProps) {
       </div>
 
       {/* ─── Right Panel ─── */}
-      <div className="flex-1 flex flex-col bg-background">
-        {/* Mobile header */}
-        <div className="flex lg:hidden items-center justify-center py-6 px-6 bg-gradient-to-br from-primary to-secondary">
-          <div className="h-14 w-14 rounded-full overflow-hidden shadow-lg">
-            <img
-              src="/bethunanalogojpg.jpg"
-              alt="Bethunana Academy"
-              className="h-full w-full object-cover"
-            />
-          </div>
-        </div>
-
+      <div className="relative z-10 flex-1 flex flex-col bg-transparent lg:bg-background">
         {/* Form area */}
         <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
           <div className="w-full max-w-sm">
             {/* Greeting */}
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10">
-                  <Sparkles className="h-4 w-4 text-secondary" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 lg:bg-secondary/10">
+                  <Sparkles className="h-4 w-4 text-white lg:text-secondary" />
                 </div>
-                <span className="text-sm font-medium text-secondary">Welcome back</span>
+                <span className="text-sm font-medium text-white/80 lg:text-secondary">Welcome back</span>
               </div>
-              <h2 className="text-3xl font-bold text-primary">Sign in</h2>
-              <p className="text-muted-foreground mt-1">
+              <h2 className="text-3xl font-bold text-white lg:text-primary">Sign in</h2>
+              <p className="text-white/70 lg:text-muted-foreground mt-1">
                 Enter your student number to continue
               </p>
             </div>
@@ -237,7 +229,7 @@ export function Login({ onLogin }: LoginProps) {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="studentNumber" className="text-sm">
+                <Label htmlFor="studentNumber" className="text-sm text-white lg:text-foreground">
                   Student Number
                 </Label>
                 <Input
@@ -284,7 +276,7 @@ export function Login({ onLogin }: LoginProps) {
               <div className="text-center">
                 <button
                   type="button"
-                  className="text-sm text-muted-foreground hover:text-secondary transition-colors"
+                  className="text-sm text-white/70 hover:text-white lg:text-muted-foreground lg:hover:text-secondary transition-colors"
                   onClick={() => alert('Please contact your administrator')}
                 >
                   Forgot your student number?
@@ -292,40 +284,28 @@ export function Login({ onLogin }: LoginProps) {
               </div>
             </form>
 
-            <Separator className="my-8" />
+            <Separator className="my-8 bg-white/20 lg:bg-border" />
 
             {/* Info section */}
-            <div className="rounded-xl bg-muted/50 border p-4">
+            <div className="rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm lg:bg-muted/50 lg:border-border p-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/10">
-                  <GraduationCap className="h-4 w-4 text-secondary" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 lg:bg-secondary/10">
+                  <GraduationCap className="h-4 w-4 text-white lg:text-secondary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">New student?</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  <p className="text-sm font-medium text-white lg:text-foreground">New student?</p>
+                  <p className="text-xs text-white/70 lg:text-muted-foreground mt-0.5 leading-relaxed">
                     Ask your school administrator to enrol you. You'll receive a unique student number to sign in.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Mobile subject pills */}
-            <div className="flex lg:hidden flex-wrap justify-center gap-2 mt-6">
-              {subjectPills.map((pill) => (
-                <span
-                  key={pill.label}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground border"
-                >
-                  <pill.icon className="h-3 w-3" />
-                  {pill.label}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center py-4 px-6 text-xs text-muted-foreground">
+        <div className="text-center py-4 px-6 text-xs text-white/50 lg:text-muted-foreground">
           &copy; {new Date().getFullYear()} Bethunana Academy. All rights reserved.
         </div>
       </div>
