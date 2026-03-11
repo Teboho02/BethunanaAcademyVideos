@@ -168,6 +168,8 @@ export function VideoWatch({ user }: VideoWatchProps) {
                   ref={videoRef}
                   src={video.videoUrl}
                   controls
+                  controlsList="nodownload"
+                  onContextMenu={(e) => e.preventDefault()}
                   className="absolute inset-0 h-full w-full bg-black"
                 />
               ) : (

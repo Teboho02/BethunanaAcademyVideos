@@ -35,6 +35,7 @@ export function ManageStudents() {
   const [studentSuccessMessage, setStudentSuccessMessage] = useState('');
   const [studentSubmitting, setStudentSubmitting] = useState(false);
   const [studentActionId, setStudentActionId] = useState<string | null>(null);
+  const [studentHistorySearchQuery, setStudentHistorySearchQuery] = useState('');
 
   const loadStudentHistory = async () => {
     setStudentHistoryLoading(true);
@@ -172,6 +173,21 @@ export function ManageStudents() {
     { label: 'Deactivated', value: deactivatedCount, icon: UserMinus, color: 'text-orange-600 bg-orange-50' },
     { label: 'Enrolled Today', value: enrolledToday, icon: CalendarPlus, color: 'text-purple-600 bg-purple-50' },
   ];
+  const normalizedStudentHistorySearch = studentHistorySearchQuery.trim().toLowerCase();
+  const filteredStudentAccounts = studentAccounts.filter((student) => {
+    if (!normalizedStudentHistorySearch) {
+      return true;
+    }
+
+    const fullName = `${student.name} ${student.surname}`.toLowerCase();
+
+    return (
+      student.name.toLowerCase().includes(normalizedStudentHistorySearch) ||
+      student.surname.toLowerCase().includes(normalizedStudentHistorySearch) ||
+      fullName.includes(normalizedStudentHistorySearch) ||
+      student.studentNumber.toLowerCase().includes(normalizedStudentHistorySearch)
+    );
+  });
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
@@ -310,6 +326,17 @@ export function ManageStudents() {
           <CardDescription>All enrolled student accounts from the backend</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Label htmlFor="studentHistorySearch" className="sr-only">
+              Search students
+            </Label>
+            <Input
+              id="studentHistorySearch"
+              value={studentHistorySearchQuery}
+              onChange={(e) => setStudentHistorySearchQuery(e.target.value)}
+              placeholder="Search by student name, surname, or student number"
+            />
+          </div>
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -348,7 +375,17 @@ export function ManageStudents() {
                   </TableRow>
                 )}
 
-                {studentAccounts.map((student) => {
+                {!studentHistoryLoading &&
+                  studentAccounts.length > 0 &&
+                  filteredStudentAccounts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                        No students match your search.
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                {filteredStudentAccounts.map((student) => {
                   const deactivateActionId = `deactivate-${student.id}`;
                   const deleteActionId = `delete-${student.id}`;
                   return (
