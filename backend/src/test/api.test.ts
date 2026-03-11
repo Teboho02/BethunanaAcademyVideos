@@ -220,6 +220,17 @@ describeIf('Video upload and streaming API', () => {
     expect(streamResponse.headers['content-length']).toBe('5');
     expect(Buffer.isBuffer(streamResponse.body)).toBe(true);
     expect((streamResponse.body as Buffer).toString('utf8')).toBe('01234');
+
+    await request(app)
+      .delete(`/api/videos/${uploaded.data.id}`)
+      .expect(200);
+
+    const listAfterDelete = await request(app)
+      .get('/api/videos')
+      .expect(200);
+
+    expect(listAfterDelete.body.success).toBe(true);
+    expect(listAfterDelete.body.data.some((video: { id: string }) => video.id === uploaded.data.id)).toBe(false);
   });
 
   it('returns 416 for invalid range', async () => {

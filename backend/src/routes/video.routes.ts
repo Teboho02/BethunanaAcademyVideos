@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  deleteVideoHandler,
   getVideoAnalyticsHandler,
   getWatchProgressHandler,
   listVideoAnalyticsHandler,
@@ -20,6 +21,7 @@ videoRouter.get('/:id/progress', getWatchProgressHandler);
 videoRouter.post('/:id/progress', saveWatchProgressHandler);
 videoRouter.get('/:id/thumbnail', streamVideoThumbnailHandler);
 videoRouter.get('/:id/stream', streamVideoHandler);
+videoRouter.delete('/:id', deleteVideoHandler);
 videoRouter.get('/', listVideosHandler);
 
 export default videoRouter;

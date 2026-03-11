@@ -84,6 +84,8 @@ Base URL: `/api`
   - Video bytes are uploaded to S3 when configured, otherwise stored locally.
 - `GET /videos`
   - Returns uploaded video metadata list
+- `DELETE /videos/:id`
+  - Deletes a video by id
 - `GET /videos/:id/stream`
   - Streams video via range requests/chunking
   - Backend handles `Range` headers and returns `206 Partial Content`

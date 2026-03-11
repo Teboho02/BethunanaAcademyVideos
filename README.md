@@ -303,11 +303,13 @@ Base path: `/api`
 ### Content Catalog
 - `GET /content/catalog`
 - `GET /content/videos/:id`
+- `DELETE /content/videos/:id` (compatibility alias)
 - `POST /content/topics`
 
 ### Video + Analytics
 - `POST /videos/upload` (`multipart/form-data`, field `video`, optional `thumbnail`)
 - `GET /videos`
+- `DELETE /videos/:id`
 - `GET /videos/:id/stream`
 - `GET /videos/:id/thumbnail`
 - `POST /videos/:id/progress`

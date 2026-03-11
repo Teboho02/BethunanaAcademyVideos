@@ -1,17 +1,52 @@
-export async function deleteVideo(videoId: string): Promise<void> {
-  const response = await fetch(`/api/content/videos/${videoId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
+async function getErrorMessage(response: Response): Promise<string> {
+  const fallback = `Request failed (${response.status})`;
 
-  if (!response.ok) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
     try {
       const payload = (await response.json()) as { message?: string; error?: string };
-      throw new Error(payload.message ?? payload.error ?? `Request failed (${response.status})`);
+      return payload.message ?? payload.error ?? fallback;
     } catch {
-      throw new Error(`Request failed (${response.status})`);
+      return fallback;
     }
   }
+
+  try {
+    const text = (await response.text()).trim();
+    return text || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function deleteVideo(videoId: string): Promise<void> {
+  const encodedId = encodeURIComponent(videoId);
+  const endpoints = [`/api/videos/${encodedId}`, `/api/content/videos/${encodedId}`];
+
+  for (let index = 0; index < endpoints.length; index += 1) {
+    const response = await fetch(endpoints[index], {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (response.ok) {
+      return;
+    }
+
+    const message = await getErrorMessage(response);
+    const shouldTryFallback =
+      index < endpoints.length - 1 &&
+      response.status === 404 &&
+      /route not found/i.test(message);
+
+    if (shouldTryFallback) {
+      continue;
+    }
+
+    throw new Error(message);
+  }
+
+  throw new Error('Request failed (404)');
 }
 
 export async function createTopic(subjectId: string, name: string): Promise<{ id: string; name: string; subjectId: string }> {
