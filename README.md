@@ -399,4 +399,4 @@ If root `dist/index.html` exists, backend serves the frontend alongside API rout
 - Never commit real secrets in `.env` files.
 - If credentials were exposed, rotate them immediately.
 - Use least-privilege IAM credentials for S3 access.
-- Keep production `ADMIN_STUDENT_NUMBER` private and non-default.
+- Keep production `ADMIN_STUDENT_NUMBER` private and non-default..
