@@ -2,6 +2,7 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { checkMySqlConnection } from './config/mysql.js';
 import { ensureMediaJobsTable } from './services/mediaJobs.service.js';
+import { ensurePasswordHashColumn } from './services/migrations.service.js';
 
 const startServer = async (): Promise<void> => {
   const mysqlHealth = await checkMySqlConnection();
@@ -9,6 +10,7 @@ const startServer = async (): Promise<void> => {
     throw new Error(`MySQL check failed: ${mysqlHealth.message}`);
   }
   await ensureMediaJobsTable();
+  await ensurePasswordHashColumn();
   console.info('[backend] MySQL connection verified.');
 
   app.listen(env.PORT, () => {

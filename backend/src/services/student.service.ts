@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import bcrypt from 'bcrypt';
 import { getMySqlPool } from '../config/mysql.js';
 import type { Student, StudentGrade } from '../types/index.js';
 import { HttpError } from '../types/index.js';
+
+const DEFAULT_PASSWORD = 'Password';
+const BCRYPT_ROUNDS = 10;
 
 interface StudentRow extends RowDataPacket {
   id: string;
@@ -37,6 +41,21 @@ const buildStudentNumber = (): string => {
   const prefix = Math.random() < 0.5 ? 2 : 3;
   const suffix = Math.floor(100000 + Math.random() * 900000);
   return `${prefix}${suffix}`;
+};
+
+interface PasswordRow extends RowDataPacket {
+  password_hash: string;
+}
+
+export const getUserPasswordHash = async (
+  studentNumber: string
+): Promise<string | null> => {
+  const pool = getMySqlPool();
+  const [rows] = await pool.query<PasswordRow[]>(
+    `SELECT password_hash FROM users WHERE LOWER(student_number) = LOWER(?) AND status = 'active' LIMIT 1`,
+    [studentNumber]
+  );
+  return rows[0]?.password_hash ?? null;
 };
 
 const findStudentById = async (studentId: string): Promise<Student | null> => {
@@ -98,6 +117,7 @@ export const enrollStudent = async (
   const pool = getMySqlPool();
   const connection = await pool.getConnection();
   const studentId = randomUUID();
+  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, BCRYPT_ROUNDS);
   let inserted = false;
 
   try {
@@ -108,10 +128,10 @@ export const enrollStudent = async (
         await connection.beginTransaction();
         await connection.query<ResultSetHeader>(
           `
-            INSERT INTO users (id, role, student_number, grade_level, status, created_at, updated_at)
-            VALUES (?, 'student', ?, ?, 'active', NOW(), NOW())
+            INSERT INTO users (id, role, student_number, password_hash, grade_level, status, created_at, updated_at)
+            VALUES (?, 'student', ?, ?, ?, 'active', NOW(), NOW())
           `,
-          [studentId, studentNumber, cleanGrade]
+          [studentId, studentNumber, passwordHash, cleanGrade]
         );
         await connection.query<ResultSetHeader>(
           `

@@ -25,6 +25,7 @@ interface LoginProps {
 export function Login({ onLogin }: LoginProps) {
   const navigate = useNavigate();
   const [studentNumber, setStudentNumber] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showMobileForm, setShowMobileForm] = useState(false);
@@ -39,7 +40,7 @@ export function Login({ onLogin }: LoginProps) {
     await new Promise((r) => setTimeout(r, 400));
 
     try {
-      const result = await loginWithStudentNumber(studentNumber.trim());
+      const result = await loginWithStudentNumber(studentNumber.trim(), password);
       if (result.role === 'admin') {
         onLogin({
           username: result.studentNumber,
@@ -279,6 +280,24 @@ export function Login({ onLogin }: LoginProps) {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm text-white lg:text-foreground">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError('');
+                  }}
+                  required
+                  className="h-12 text-base"
+                />
+              </div>
+
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -390,6 +409,19 @@ export function Login({ onLogin }: LoginProps) {
                     onChange={(e) => { setStudentNumber(e.target.value); if (error) setError(''); }}
                     required
                     autoFocus
+                    className="h-12 text-base"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="passwordMobile" className="text-sm text-white">Password</Label>
+                  <Input
+                    id="passwordMobile"
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }}
+                    required
                     className="h-12 text-base"
                   />
                 </div>

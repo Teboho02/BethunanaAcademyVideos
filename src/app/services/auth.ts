@@ -22,7 +22,7 @@ const parseErrorMessage = async (response: Response): Promise<string> => {
   }
 };
 
-export async function loginWithStudentNumber(studentNumber: string): Promise<
+export async function loginWithStudentNumber(studentNumber: string, password: string): Promise<
   | { role: 'admin'; studentNumber: string; name?: string; surname?: string }
   | { role: 'student'; studentNumber: string; grade: number; name?: string; surname?: string }
 > {
@@ -32,7 +32,7 @@ export async function loginWithStudentNumber(studentNumber: string): Promise<
       'Content-Type': 'application/json',
     },
     credentials: 'include',
-    body: JSON.stringify({ studentNumber }),
+    body: JSON.stringify({ studentNumber, password }),
   });
 
   if (!response.ok) {

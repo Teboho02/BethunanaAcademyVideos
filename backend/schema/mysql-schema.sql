@@ -1,10 +1,9 @@
 -- Bethunana backend schema (MySQL 8+)
 --
 -- Rules reflected from product requirements:
--- 1) No email or password hash in DB.
--- 2) Student number is the login identifier.
--- 3) grade_level is stored on users only for non-admin users.
--- 4) Learner enrollment supports grades 10, 11, and 12.
+-- 1) Student number + password are the login credentials.
+-- 2) grade_level is stored on users only for non-admin users.
+-- 3) Learner enrollment supports grades 10, 11, and 12.
 
 CREATE DATABASE IF NOT EXISTS bethunana
   CHARACTER SET utf8mb4
@@ -17,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   id CHAR(36) NOT NULL,
   role ENUM('admin', 'student') NOT NULL,
   student_number VARCHAR(32) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
   grade_level TINYINT UNSIGNED NULL,
   status ENUM('active', 'deactivated') NOT NULL DEFAULT 'active',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -149,9 +149,16 @@ CREATE TABLE IF NOT EXISTS media_jobs (
 -- Seed data
 -- ───────────────────────────────────────────────
 
--- Default admin user (login with student number ADMIN001)
-INSERT IGNORE INTO users (id, role, student_number, grade_level, status)
-VALUES (UUID(), 'admin', 'ADMIN001', NULL, 'active');
+-- Default admin user (login with student number ADMIN001, password: Password)
+INSERT IGNORE INTO users (id, role, student_number, password_hash, grade_level, status)
+VALUES (UUID(), 'admin', 'ADMIN001', '$2b$10$/bI5MF4iy79nhxd63fYnT.EVtyRS.zT1Uo4lTVqgkTBv3Mce.UiUG', NULL, 'active');
+
+-- ───────────────────────────────────────────────
+-- Migration: add password_hash to existing users
+-- Run this on existing databases to add the column and set default password "Password"
+-- ───────────────────────────────────────────────
+-- ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER student_number;
+-- UPDATE users SET password_hash = '$2b$10$/bI5MF4iy79nhxd63fYnT.EVtyRS.zT1Uo4lTVqgkTBv3Mce.UiUG' WHERE password_hash = '';
 
 -- Curriculum subject seed data (no video mock data)
 INSERT IGNORE INTO subjects (code, name, description) VALUES

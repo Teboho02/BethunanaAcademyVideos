@@ -1,15 +1,31 @@
 import type { RequestHandler } from 'express';
+import bcrypt from 'bcrypt';
 import { env } from '../config/env.js';
-import { authenticateStudentByNumber } from '../services/student.service.js';
+import { authenticateStudentByNumber, getUserPasswordHash } from '../services/student.service.js';
 import { HttpError } from '../types/index.js';
 
 export const loginHandler: RequestHandler = async (req, res, next) => {
   try {
     const studentNumber =
       typeof req.body.studentNumber === 'string' ? req.body.studentNumber : '';
+    const password =
+      typeof req.body.password === 'string' ? req.body.password : '';
 
     if (!studentNumber.trim()) {
       throw new HttpError(400, 'Student number is required');
+    }
+    if (!password) {
+      throw new HttpError(400, 'Password is required');
+    }
+
+    // Verify password against stored hash
+    const storedHash = await getUserPasswordHash(studentNumber.trim());
+    if (!storedHash) {
+      throw new HttpError(401, 'Invalid student number or password');
+    }
+    const passwordValid = await bcrypt.compare(password, storedHash);
+    if (!passwordValid) {
+      throw new HttpError(401, 'Invalid student number or password');
     }
 
     if (studentNumber.trim().toLowerCase() === env.ADMIN_STUDENT_NUMBER.toLowerCase()) {
