@@ -5,6 +5,8 @@ import { HttpError } from '../types/index.js';
 interface WatchProgressRow extends RowDataPacket {
   video_id: string;
   student_number: string;
+  first_name: string | null;
+  last_name: string | null;
   last_position_seconds: number;
   total_watched_seconds: number;
   updated_at: Date | string;
@@ -13,6 +15,8 @@ interface WatchProgressRow extends RowDataPacket {
 interface WatchProgressRecord {
   videoId: string;
   studentNumber: string;
+  name: string | null;
+  surname: string | null;
   lastPositionSeconds: number;
   totalWatchedSeconds: number;
   updatedAt: string;
@@ -29,6 +33,8 @@ const toSafeNumber = (value: unknown): number => {
 const mapProgressRow = (row: WatchProgressRow): WatchProgressRecord => ({
   videoId: row.video_id,
   studentNumber: row.student_number,
+  name: row.first_name ?? null,
+  surname: row.last_name ?? null,
   lastPositionSeconds: Number(row.last_position_seconds),
   totalWatchedSeconds: Number(row.total_watched_seconds),
   updatedAt: new Date(row.updated_at).toISOString()
@@ -51,6 +57,8 @@ const toVideoAnalytics = (videoId: string, records: WatchProgressRecord[]) => {
     averageWatchSeconds: viewerCount > 0 ? totalWatchedSeconds / viewerCount : 0,
     viewers: sorted.map((viewer) => ({
       studentNumber: viewer.studentNumber,
+      name: viewer.name,
+      surname: viewer.surname,
       totalWatchedSeconds: viewer.totalWatchedSeconds,
       lastPositionSeconds: viewer.lastPositionSeconds,
       updatedAt: viewer.updatedAt
@@ -140,14 +148,18 @@ export const getVideoAnalytics = async (videoId: string) => {
   const pool = getMySqlPool();
   const [rows] = await pool.query<WatchProgressRow[]>(
     `SELECT
-       video_id,
-       student_number,
-       last_position_seconds,
-       total_watched_seconds,
-       updated_at
-     FROM watch_progress
-     WHERE video_id = ?
-     ORDER BY total_watched_seconds DESC`,
+       wp.video_id,
+       wp.student_number,
+       s.first_name,
+       s.last_name,
+       wp.last_position_seconds,
+       wp.total_watched_seconds,
+       wp.updated_at
+     FROM watch_progress wp
+     LEFT JOIN users u ON LOWER(u.student_number) = LOWER(wp.student_number)
+     LEFT JOIN students s ON s.user_id = u.id
+     WHERE wp.video_id = ?
+     ORDER BY wp.total_watched_seconds DESC`,
     [cleanVideoId]
   );
 
@@ -158,13 +170,17 @@ export const listAllVideoAnalytics = async () => {
   const pool = getMySqlPool();
   const [rows] = await pool.query<WatchProgressRow[]>(
     `SELECT
-       video_id,
-       student_number,
-       last_position_seconds,
-       total_watched_seconds,
-       updated_at
-     FROM watch_progress
-     ORDER BY video_id ASC, total_watched_seconds DESC`
+       wp.video_id,
+       wp.student_number,
+       s.first_name,
+       s.last_name,
+       wp.last_position_seconds,
+       wp.total_watched_seconds,
+       wp.updated_at
+     FROM watch_progress wp
+     LEFT JOIN users u ON LOWER(u.student_number) = LOWER(wp.student_number)
+     LEFT JOIN students s ON s.user_id = u.id
+     ORDER BY wp.video_id ASC, wp.total_watched_seconds DESC`
   );
 
   const byVideo = new Map<string, WatchProgressRecord[]>();

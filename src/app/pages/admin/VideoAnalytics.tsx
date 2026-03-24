@@ -279,7 +279,7 @@ export function VideoAnalytics() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="min-w-[160px]">Student Number</TableHead>
+                          <TableHead className="min-w-[180px]">Student</TableHead>
                           <TableHead className="min-w-[130px]">Total Watched</TableHead>
                           <TableHead className="min-w-[130px]">Last Position</TableHead>
                           <TableHead className="min-w-[150px]">Last Active</TableHead>
@@ -288,7 +288,18 @@ export function VideoAnalytics() {
                       <TableBody>
                         {expandedVideo.viewers.map((viewer) => (
                           <TableRow key={viewer.studentNumber}>
-                            <TableCell className="font-medium">{viewer.studentNumber}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {viewer.name && viewer.surname
+                                    ? `${viewer.name} ${viewer.surname}`
+                                    : viewer.studentNumber}
+                                </p>
+                                {viewer.name && viewer.surname && (
+                                  <p className="text-xs text-muted-foreground">{viewer.studentNumber}</p>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>{formatDuration(viewer.totalWatchedSeconds)}</TableCell>
                             <TableCell>{formatDuration(viewer.lastPositionSeconds)}</TableCell>
                             <TableCell className="text-muted-foreground">

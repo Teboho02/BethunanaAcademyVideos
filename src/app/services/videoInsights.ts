@@ -1,5 +1,7 @@
 export interface VideoViewer {
   studentNumber: string;
+  name: string | null;
+  surname: string | null;
   totalWatchedSeconds: number;
   lastPositionSeconds: number;
   updatedAt: string;
