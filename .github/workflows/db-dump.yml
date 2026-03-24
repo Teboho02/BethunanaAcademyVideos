@@ -1,0 +1,53 @@
+name: Database Dump
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH & Dump database
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            DUMP_FILE="/tmp/bethunana_dump_${TIMESTAMP}.sql"
+
+            mysqldump -u Teboho -p'${{ secrets.DB_PASSWORD }}' BethunanaAcademy > "${DUMP_FILE}"
+
+            echo "DUMP_FILE=${DUMP_FILE}"
+            echo ">>> Dump created: ${DUMP_FILE} ($(du -h ${DUMP_FILE} | cut -f1))"
+
+      - name: Download dump from server
+        uses: nicklasfrahm/scp-action@v1.0.1
+        with:
+          direction: download
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: /tmp/bethunana_dump_*.sql
+          target: dump.sql
+
+      - name: Upload dump as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-dump-${{ github.run_id }}
+          path: dump.sql
+          retention-days: 30
+
+      - name: Clean up remote dump file
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: rm -f /tmp/bethunana_dump_*.sql
