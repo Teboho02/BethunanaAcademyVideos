@@ -101,6 +101,23 @@ const assertStudentGrade = (grade: number): StudentGrade => {
   return grade;
 };
 
+const syncStudentToExternalSystem = async (student: Student): Promise<void> => {
+  const response = await fetch('https://baonlineexaminations.com/api/students/from-existing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      firstName: student.name,
+      lastName: student.surname,
+      grade: student.grade,
+      studentNumber: student.studentNumber,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new HttpError(502, `Failed to sync student to external system: ${response.statusText}`);
+  }
+};
+
 export const enrollStudent = async (
   name: string,
   surname: string,
@@ -163,6 +180,8 @@ export const enrollStudent = async (
   if (!createdStudent) {
     throw new HttpError(500, 'Failed to create student account');
   }
+
+  await syncStudentToExternalSystem(createdStudent);
 
   return createdStudent;
 };
