@@ -102,16 +102,22 @@ const assertStudentGrade = (grade: number): StudentGrade => {
 };
 
 const syncStudentToExternalSystem = async (student: Student): Promise<void> => {
-  const response = await fetch('https://baonlineexaminations.com/api/students/from-existing', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      firstName: student.name,
-      lastName: student.surname,
-      grade: student.grade,
-      studentNumber: student.studentNumber,
-    }),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch('https://baonlineexaminations.com/api/students/from-existing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: student.name,
+        lastName: student.surname,
+        grade: student.grade,
+        studentNumber: student.studentNumber,
+      }),
+    });
+  } catch {
+    throw new HttpError(502, 'Could not reach external system: baonlineexaminations.com');
+  }
 
   if (!response.ok) {
     throw new HttpError(502, `Failed to sync student to external system: ${response.statusText}`);
