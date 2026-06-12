@@ -17,7 +17,13 @@ const toNonEmptyString = (value: string | undefined, fallback: string): string =
 export const env = {
   NODE_ENV: toNonEmptyString(process.env.NODE_ENV, 'development'),
   PORT: toNumber(process.env.PORT, 4000),
-  CORS_ORIGIN: toNonEmptyString(process.env.CORS_ORIGIN, 'http://localhost:5173'),
+  // Defaults cover the Vite web frontend, the Expo (mobile app) web/dev client,
+  // and the production site. Native mobile requests send no Origin header and
+  // are never CORS-blocked.
+  CORS_ORIGIN: toNonEmptyString(
+    process.env.CORS_ORIGIN,
+    'http://localhost:5173,http://localhost:8081,https://bethunanaacademy.co.za'
+  ),
 
   MYSQL_HOST: toNonEmptyString(process.env.MYSQL_HOST, 'localhost'),
   MYSQL_PORT: toNumber(process.env.MYSQL_PORT, 3306),
