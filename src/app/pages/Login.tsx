@@ -16,6 +16,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Separator } from '../components/ui/separator';
+import { AppPromo } from '../components/AppPromo';
 import { loginWithStudentNumber } from '../services/auth';
 
 interface LoginProps {
@@ -162,6 +163,9 @@ export function Login({ onLogin }: LoginProps) {
                 </span>
               ))}
             </div>
+
+            {/* Get the app — visible to everyone, no login required */}
+            <AppPromo className="mb-6 max-w-md" />
 
             {/* Mobile Login button */}
             <div className="lg:hidden mb-6">
