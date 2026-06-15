@@ -6,11 +6,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../comp
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { PageHero } from '../../components/PageHero';
-import { OnboardingModal } from '../../components/OnboardingModal';
 import { SubjectIcon, getSubjectStyle } from '../../components/SubjectIcon';
 import { useCatalog } from '../../hooks/useCatalog';
-
-const ONBOARDING_KEY = 'bethunana_onboarding_seen';
 
 interface HomeProps {
   user: {
@@ -25,14 +22,6 @@ export function Home({ user }: HomeProps) {
   const navigate = useNavigate();
   const [selectedGrade, setSelectedGrade] = useState<number>(10);
   const { catalog, loading, error } = useCatalog();
-  const [showGuide, setShowGuide] = useState(
-    () => typeof window !== 'undefined' && localStorage.getItem(ONBOARDING_KEY) !== 'true',
-  );
-
-  const closeGuide = () => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
-    setShowGuide(false);
-  };
 
   const grades = catalog?.grades ?? [];
   const videos = catalog?.videos ?? [];
@@ -181,8 +170,6 @@ export function Home({ user }: HomeProps) {
           </p>
         )}
       </div>
-
-      <OnboardingModal open={showGuide} onClose={closeGuide} />
     </div>
   );
 }
