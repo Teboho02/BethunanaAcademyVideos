@@ -21,7 +21,8 @@ export function AppPromo({ className = '' }: { className?: string }) {
         <div className="flex shrink-0 items-center gap-1.5">
           <a
             href={ANDROID_APK_URL}
-            download
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-white/90"
           >
             <Download className="h-3.5 w-3.5" />

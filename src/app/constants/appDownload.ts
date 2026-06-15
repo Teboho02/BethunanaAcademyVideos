@@ -1,6 +1,7 @@
-// Where the Android APK is served from. The file is self-hosted in public/app/.
-// Update this (or the file) when a new release is published.
-export const ANDROID_APK_URL = '/app/bethunana-academy.apk';
+// Where the Android APK is served from (hosted on Cloudflare R2, not in the repo
+// because it exceeds GitHub's 100MB limit). Update this when a new release is published.
+export const ANDROID_APK_URL =
+  'https://pub-4821c2cbfdcb410aaca3f90cb13655ef.r2.dev/application-25c3b1d6-beb1-4406-93da-4e87f2cab147.apk';
 
 export type MobilePlatform = 'ios' | 'android' | 'other';
 
