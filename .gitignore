@@ -7,3 +7,6 @@ build/
 .claude/
 .codex/
 backend/.env
+
+# Android APK is too large for GitHub (>100MB) — host it externally
+public/app/*.apk

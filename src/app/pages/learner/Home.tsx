@@ -6,7 +6,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../comp
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { PageHero } from '../../components/PageHero';
-import { AppPromo } from '../../components/AppPromo';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { SubjectIcon, getSubjectStyle } from '../../components/SubjectIcon';
 import { useCatalog } from '../../hooks/useCatalog';
@@ -64,8 +63,6 @@ export function Home({ user }: HomeProps) {
       </PageHero>
 
       <div className="container mx-auto px-4 py-8 lg:px-8 lg:py-12">
-        <AppPromo className="mb-8" />
-
         {/* Grade tabs */}
         {user.role === 'admin' ? (
           <Tabs
