@@ -39,16 +39,6 @@ app.use('/api', apiRouter);
 if (hasFrontendBuild) {
   app.use(express.static(frontendDistPath, { index: false }));
 
-  // Serve the privacy policy at a clean /privacy URL (referenced by the mobile
-  // app store listing). Must come before the SPA fallback so it isn't swallowed.
-  app.get('/privacy', (_req, res, next) => {
-    res.sendFile(path.join(frontendDistPath, 'privacy.html'), (error) => {
-      if (error) {
-        next(error);
-      }
-    });
-  });
-
   app.get(/^\/(?!api(?:\/|$)).*/, (req, res, next) => {
     if (!req.accepts('html')) {
       next();
