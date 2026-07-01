@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 import { Login } from './pages/Login';
+import { Support } from './pages/Support';
 import { Home } from './pages/learner/Home';
 import { SubjectPage } from './pages/learner/SubjectPage';
 import { TopicPage } from './pages/learner/TopicPage';
@@ -30,6 +31,10 @@ export const createRouter = (
       ) : (
         <Login onLogin={onLogin} />
       ),
+    },
+    {
+      path: '/support',
+      element: <Support />,
     },
     {
       path: '/',
