@@ -129,7 +129,7 @@ export function Login({ onLogin }: LoginProps) {
               </span>
             </h1>
             <p className="text-lg text-white/70 max-w-md leading-relaxed mb-3">
-              High-quality video lessons for Grade 10–12 learners, aligned with <span className="text-white font-semibold">CAPS</span> and <span className="text-white font-semibold">IEB</span>.
+              High-quality video lessons for Grade 8–12 learners, aligned with <span className="text-white font-semibold">CAPS</span> and <span className="text-white font-semibold">IEB</span>.
             </p>
             <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-4 py-1.5 mb-8">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />

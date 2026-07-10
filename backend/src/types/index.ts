@@ -1,6 +1,6 @@
 export type StudentStatus = 'active' | 'deactivated';
 export type VideoStorageType = 's3' | 'local';
-export type StudentGrade = 10 | 11 | 12;
+export type StudentGrade = 8 | 9 | 10 | 11 | 12;
 export type ContentPlayerType = 'embed' | 'stream';
 
 export interface Student {

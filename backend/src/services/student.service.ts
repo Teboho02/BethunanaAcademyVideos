@@ -18,8 +18,13 @@ interface StudentRow {
   updated_at: Date | string;
 }
 
+const VALID_GRADES: readonly StudentGrade[] = [8, 9, 10, 11, 12];
+
+const isStudentGrade = (value: number): value is StudentGrade =>
+  (VALID_GRADES as readonly number[]).includes(value);
+
 const toStudentGrade = (value: number): StudentGrade => {
-  if (value === 10 || value === 11 || value === 12) {
+  if (isStudentGrade(value)) {
     return value;
   }
   throw new HttpError(500, 'Invalid grade in database');
@@ -83,8 +88,8 @@ const findStudentById = async (studentId: string): Promise<Student | null> => {
 };
 
 const assertStudentGrade = (grade: number): StudentGrade => {
-  if (grade !== 10 && grade !== 11 && grade !== 12) {
-    throw new HttpError(400, 'Grade must be 10, 11, or 12');
+  if (!isStudentGrade(grade)) {
+    throw new HttpError(400, `Grade must be one of: ${VALID_GRADES.join(', ')}`);
   }
   return grade;
 };

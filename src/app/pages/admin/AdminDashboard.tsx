@@ -69,7 +69,7 @@ export function AdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Overview of your platform content across Grade 10-12
+          Overview of your platform content across Grade 8-12
         </p>
       </div>
 

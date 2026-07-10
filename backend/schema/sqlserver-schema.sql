@@ -29,7 +29,7 @@ BEGIN
     CONSTRAINT chk_users_status CHECK (status IN ('active', 'deactivated')),
     CONSTRAINT chk_users_grade_by_role CHECK (
       (role = 'admin' AND grade_level IS NULL) OR
-      (role = 'student' AND grade_level IN (10, 11, 12))
+      (role = 'student' AND grade_level IN (8, 9, 10, 11, 12))
     )
   );
 
@@ -188,6 +188,10 @@ IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE student_number = 'ADMIN001')
   VALUES (LOWER(NEWID()), 'admin', 'ADMIN001', '$2b$10$/bI5MF4iy79nhxd63fYnT.EVtyRS.zT1Uo4lTVqgkTBv3Mce.UiUG', NULL, 'active');
 
 -- Curriculum subject seed data (no video mock data)
+IF NOT EXISTS (SELECT 1 FROM dbo.subjects WHERE code = 'g8-mathematics')
+  INSERT INTO dbo.subjects (code, name, description) VALUES ('g8-mathematics', 'Mathematics', 'Grade 8 Mathematics');
+IF NOT EXISTS (SELECT 1 FROM dbo.subjects WHERE code = 'g9-mathematics')
+  INSERT INTO dbo.subjects (code, name, description) VALUES ('g9-mathematics', 'Mathematics', 'Grade 9 Mathematics');
 IF NOT EXISTS (SELECT 1 FROM dbo.subjects WHERE code = 'g10-mathematics')
   INSERT INTO dbo.subjects (code, name, description) VALUES ('g10-mathematics', 'Mathematics', 'Grade 10 Mathematics');
 IF NOT EXISTS (SELECT 1 FROM dbo.subjects WHERE code = 'g10-physical-sciences')

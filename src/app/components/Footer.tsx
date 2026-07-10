@@ -17,7 +17,7 @@ export function Footer() {
               <span className="text-lg font-bold">Bethunana Academy</span>
             </div>
             <p className="text-sm text-primary-foreground/70 leading-relaxed">
-              Empowering Grade 10–12 learners across South Africa with high-quality educational video content aligned to the national curriculum.
+              Empowering Grade 8–12 learners across South Africa with high-quality educational video content aligned to the national curriculum.
             </p>
           </div>
 
