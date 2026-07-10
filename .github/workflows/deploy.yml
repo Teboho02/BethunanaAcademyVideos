@@ -104,12 +104,13 @@ jobs:
             # a leftover node process holding port 4000 makes every new API
             # start die with EADDRINUSE while the stale code keeps serving.
             echo ">>> Restarting app with PM2..."
-            # The [.]/[s] character classes stop pkill from matching this
-            # script's own command line (the ssh action passes the whole
-            # script as one command string). Patterns must not require a
-            # path prefix: the processes are spawned with relative paths
-            # ("node dist/index.js"). fuser is the backstop — kill whatever
-            # still holds the app port.
+            # The ssh action passes this whole script as one command string,
+            # so it appears verbatim in the session's own command line. The
+            # character classes keep the patterns from matching themselves,
+            # and NOTHING else in this script (comments included!) may spell
+            # out those process paths literally. Patterns use no directory
+            # prefix because the processes are spawned with relative paths.
+            # fuser is the backstop: kill whatever still holds the app port.
             pm2 delete "${APP_NAME}" > /dev/null 2>&1 || true
             pkill -f "run-api-worker[.]mjs" || true
             pkill -f "dist/index[.]js" || true
