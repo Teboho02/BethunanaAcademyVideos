@@ -11,11 +11,11 @@ Source layout:
 - `src/routes/`: route definitions
 - `src/controllers/`: HTTP handlers
 - `src/services/`: business logic and storage services
-- `src/config/`: environment and MySQL config
-- `src/data/contentCatalog.ts`: catalog projection from MySQL subject/topic/video tables
-- `schema/mysql-schema.sql`: MySQL schema
+- `src/config/`: environment and SQL Server config
+- `src/data/contentCatalog.ts`: catalog projection from the subject/topic/video tables
+- `schema/sqlserver-schema.sql`: SQL Server schema (`schema/mysql-schema.sql` is the legacy MySQL version, kept for reference)
 
-The backend is MySQL-backed for student, topic, video, and watch analytics data.
+The backend is backed by Azure SQL Server for student, topic, video, and watch analytics data.
 
 ## Environment Variables
 
@@ -23,7 +23,8 @@ Copy `.env.example` to `.env` and set values:
 
 - `PORT`: API port (default `4000`)
 - `CORS_ORIGIN`: allowed frontend origin(s), comma-separated
-- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
+- `SQLSERVER_HOST` (e.g. `your-server.database.windows.net`), `SQLSERVER_PORT`, `SQLSERVER_USER`, `SQLSERVER_PASSWORD`, `SQLSERVER_DATABASE`
+- `SQLSERVER_ENCRYPT` (default `true`; Azure SQL requires it — only set `false` for a local SQL Server without TLS)
 - `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
 - `S3_ENDPOINT` (optional for S3-compatible providers)
 - `LOCAL_VIDEO_STORAGE_PATH` (fallback local storage when S3 is not configured)
@@ -102,13 +103,15 @@ Base URL: `/api`
     - `videos`
   - Includes published videos from the database (`playerType: "stream"`).
 
-## MySQL Schema
+## Database Schema
 
-Apply:
+Create the `bethunana` database on your Azure SQL server first (portal or `az sql db create`), then apply the schema with `sqlcmd`:
 
-```sql
-SOURCE backend/schema/mysql-schema.sql;
+```bash
+sqlcmd -S your-server.database.windows.net -d bethunana -U <user> -P <password> -i backend/schema/sqlserver-schema.sql
 ```
+
+The script is idempotent and also seeds the default admin (`ADMIN001` / `Password`) and the curriculum subjects. Remember to allow your app's outbound IP in the Azure SQL server firewall (or enable "Allow Azure services").
 
 Tables:
 

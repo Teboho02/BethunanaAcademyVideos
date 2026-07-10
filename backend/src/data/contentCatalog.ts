@@ -1,23 +1,22 @@
-import type { RowDataPacket } from 'mysql2';
 import { env } from '../config/env.js';
-import { getMySqlPool } from '../config/mysql.js';
+import { queryRows } from '../config/db.js';
 import type { ContentCatalog, ContentSubject, ContentTopic, ContentVideo } from '../types/index.js';
 import { ensureVideoThumbnailColumns } from '../services/videoSchema.service.js';
 
-interface SubjectRow extends RowDataPacket {
+interface SubjectRow {
   code: string;
   name: string;
   description: string | null;
 }
 
-interface TopicRow extends RowDataPacket {
+interface TopicRow {
   id: number;
   name: string;
   subject_code: string;
   video_count: number;
 }
 
-interface VideoRow extends RowDataPacket {
+interface VideoRow {
   id: string;
   title: string;
   description: string;
@@ -134,8 +133,7 @@ const mapVideoRow = (row: VideoRow): ContentVideo => ({
 });
 
 export const listCatalogSubjects = async (): Promise<ContentSubject[]> => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<SubjectRow[]>(
+  const rows = await queryRows<SubjectRow>(
     `SELECT code, name, description
      FROM subjects
      WHERE is_active = 1
@@ -145,8 +143,7 @@ export const listCatalogSubjects = async (): Promise<ContentSubject[]> => {
 };
 
 export const listCatalogTopics = async (): Promise<ContentTopic[]> => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<TopicRow[]>(
+  const rows = await queryRows<TopicRow>(
     `SELECT
        t.id,
        t.name,
@@ -157,7 +154,7 @@ export const listCatalogTopics = async (): Promise<ContentTopic[]> => {
      LEFT JOIN videos v ON v.topic_id = t.id AND v.status = 'published'
      WHERE t.is_active = 1
        AND s.is_active = 1
-     GROUP BY t.id, t.name, s.code
+     GROUP BY t.id, t.name, t.sort_order, s.code
      ORDER BY s.code ASC, t.sort_order ASC, t.name ASC`
   );
   return rows.map(mapTopicRow);
@@ -165,8 +162,7 @@ export const listCatalogTopics = async (): Promise<ContentTopic[]> => {
 
 export const listCatalogVideos = async (): Promise<ContentVideo[]> => {
   await ensureVideoThumbnailColumns();
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<VideoRow[]>(
+  const rows = await queryRows<VideoRow>(
     `SELECT
        v.id,
        v.title,
@@ -193,9 +189,8 @@ export const listCatalogVideos = async (): Promise<ContentVideo[]> => {
 
 export const getCatalogVideoById = async (videoId: string): Promise<ContentVideo | null> => {
   await ensureVideoThumbnailColumns();
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<VideoRow[]>(
-    `SELECT
+  const rows = await queryRows<VideoRow>(
+    `SELECT TOP 1
        v.id,
        v.title,
        v.description,
@@ -214,8 +209,7 @@ export const getCatalogVideoById = async (videoId: string): Promise<ContentVideo
      WHERE v.id = ?
        AND v.status = 'published'
        AND t.is_active = 1
-       AND s.is_active = 1
-     LIMIT 1`,
+       AND s.is_active = 1`,
     [videoId]
   );
 

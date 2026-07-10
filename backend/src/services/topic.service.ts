@@ -1,5 +1,4 @@
-import type { RowDataPacket, ResultSetHeader } from 'mysql2';
-import { getMySqlPool } from '../config/mysql.js';
+import { execute, queryRows } from '../config/db.js';
 import { HttpError } from '../types/index.js';
 
 export interface TopicWithSubject {
@@ -11,7 +10,7 @@ export interface TopicWithSubject {
   videoCount: number;
 }
 
-interface TopicRow extends RowDataPacket {
+interface TopicRow {
   id: number;
   name: string;
   subject_code: string;
@@ -19,7 +18,7 @@ interface TopicRow extends RowDataPacket {
   video_count: number;
 }
 
-interface SubjectRow extends RowDataPacket {
+interface SubjectRow {
   id: number;
   code: string;
 }
@@ -51,10 +50,12 @@ const TOPIC_SELECT = `
   WHERE t.is_active = 1 AND s.is_active = 1
 `;
 
+// SQL Server requires ORDER BY columns (t.sort_order) to appear in GROUP BY.
+const TOPIC_GROUP_BY = 'GROUP BY t.id, t.name, t.sort_order, s.code, s.name';
+
 export const listTopics = async (): Promise<TopicWithSubject[]> => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<TopicRow[]>(
-    `${TOPIC_SELECT} GROUP BY t.id, t.name, s.code, s.name ORDER BY s.code, t.sort_order, t.name`
+  const rows = await queryRows<TopicRow>(
+    `${TOPIC_SELECT} ${TOPIC_GROUP_BY} ORDER BY s.code, t.sort_order, t.name`
   );
   return rows.map(rowToTopic);
 };
@@ -68,21 +69,21 @@ export const createTopic = async (
   if (!cleanName) throw new HttpError(400, 'Topic name is required');
   if (!cleanSubjectCode) throw new HttpError(400, 'Subject id is required');
 
-  const pool = getMySqlPool();
-  const [subjectRows] = await pool.query<SubjectRow[]>(
-    'SELECT id, code FROM subjects WHERE code = ? AND is_active = 1 LIMIT 1',
+  const subjectRows = await queryRows<SubjectRow>(
+    'SELECT TOP 1 id, code FROM subjects WHERE code = ? AND is_active = 1',
     [cleanSubjectCode]
   );
   const subjectDbId = subjectRows[0]?.id;
   if (!subjectDbId) throw new HttpError(404, 'Subject not found');
 
-  await pool.query(
-    'INSERT IGNORE INTO topics (subject_id, name, sort_order) VALUES (?, ?, 0)',
-    [subjectDbId, cleanName]
+  await execute(
+    `IF NOT EXISTS (SELECT 1 FROM topics WHERE subject_id = ? AND name = ?)
+       INSERT INTO topics (subject_id, name, sort_order) VALUES (?, ?, 0)`,
+    [subjectDbId, cleanName, subjectDbId, cleanName]
   );
 
-  const [rows] = await pool.query<TopicRow[]>(
-    `${TOPIC_SELECT} AND t.subject_id = ? AND t.name = ? GROUP BY t.id, t.name, s.code, s.name`,
+  const rows = await queryRows<TopicRow>(
+    `${TOPIC_SELECT} AND t.subject_id = ? AND t.name = ? ${TOPIC_GROUP_BY}`,
     [subjectDbId, cleanName]
   );
   if (!rows[0]) throw new HttpError(500, 'Failed to create topic');
@@ -97,16 +98,14 @@ export const renameTopic = async (
   const cleanName = name.trim();
   if (!cleanName) throw new HttpError(400, 'Topic name is required');
 
-  const pool = getMySqlPool();
-
-  const [result] = await pool.query<ResultSetHeader>(
-    'UPDATE topics SET name = ?, updated_at = NOW() WHERE id = ?',
+  const result = await execute(
+    'UPDATE topics SET name = ?, updated_at = GETDATE() WHERE id = ?',
     [cleanName, topicId]
   );
   if (result.affectedRows === 0) throw new HttpError(404, 'Topic not found');
 
-  const [rows] = await pool.query<TopicRow[]>(
-    `${TOPIC_SELECT} AND t.id = ? GROUP BY t.id, t.name, s.code, s.name`,
+  const rows = await queryRows<TopicRow>(
+    `${TOPIC_SELECT} AND t.id = ? ${TOPIC_GROUP_BY}`,
     [topicId]
   );
   if (!rows[0]) throw new HttpError(404, 'Topic not found after update');
@@ -114,13 +113,11 @@ export const renameTopic = async (
 };
 
 export const deleteTopic = async (topicId: string): Promise<void> => {
-  const pool = getMySqlPool();
-
-  const [videoRows] = await pool.query<RowDataPacket[]>(
-    'SELECT COUNT(*) AS count FROM videos WHERE topic_id = ? AND status = "published"',
+  const videoRows = await queryRows<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM videos WHERE topic_id = ? AND status = 'published'",
     [topicId]
   );
-  const videoCount = Number((videoRows[0] as any)?.count ?? 0);
+  const videoCount = Number(videoRows[0]?.count ?? 0);
   if (videoCount > 0) {
     throw new HttpError(
       409,
@@ -128,7 +125,7 @@ export const deleteTopic = async (topicId: string): Promise<void> => {
     );
   }
 
-  const [result] = await pool.query<ResultSetHeader>(
+  const result = await execute(
     'DELETE FROM topics WHERE id = ?',
     [topicId]
   );

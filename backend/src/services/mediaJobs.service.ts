@@ -1,10 +1,9 @@
-import type { RowDataPacket } from 'mysql2';
-import { getMySqlPool } from '../config/mysql.js';
+import { execute, queryRows } from '../config/db.js';
 
 export type MediaJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 export type MediaJobType = 'video_post_upload';
 
-interface MediaJobRow extends RowDataPacket {
+interface MediaJobRow {
   id: number;
   job_type: string;
   video_id: string;
@@ -71,29 +70,33 @@ export const ensureMediaJobsTable = async (): Promise<void> => {
   }
 
   ensureTableInFlight = (async () => {
-    const pool = getMySqlPool();
-    await pool.query(
-      `CREATE TABLE IF NOT EXISTS media_jobs (
-         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-         job_type VARCHAR(64) NOT NULL,
-         video_id CHAR(36) NOT NULL,
-         payload_json JSON NULL,
-         status ENUM('queued', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'queued',
-         attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
-         max_attempts TINYINT UNSIGNED NOT NULL DEFAULT 5,
-         available_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         locked_at TIMESTAMP NULL DEFAULT NULL,
-         locked_by VARCHAR(100) NULL,
-         last_error TEXT NULL,
-         completed_at TIMESTAMP NULL DEFAULT NULL,
-         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-         PRIMARY KEY (id),
-         KEY idx_media_jobs_status_available (status, available_at),
-         KEY idx_media_jobs_video (video_id),
-         CONSTRAINT fk_media_jobs_video
-           FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
-       ) ENGINE=InnoDB`
+    await execute(
+      `IF OBJECT_ID('dbo.media_jobs', 'U') IS NULL
+       BEGIN
+         CREATE TABLE dbo.media_jobs (
+           id BIGINT IDENTITY(1,1) NOT NULL,
+           job_type VARCHAR(64) NOT NULL,
+           video_id CHAR(36) NOT NULL,
+           payload_json NVARCHAR(MAX) NULL,
+           status VARCHAR(20) NOT NULL CONSTRAINT df_media_jobs_status DEFAULT 'queued',
+           attempts TINYINT NOT NULL CONSTRAINT df_media_jobs_attempts DEFAULT 0,
+           max_attempts TINYINT NOT NULL CONSTRAINT df_media_jobs_max_attempts DEFAULT 5,
+           available_at DATETIME2 NOT NULL CONSTRAINT df_media_jobs_available_at DEFAULT GETDATE(),
+           locked_at DATETIME2 NULL,
+           locked_by VARCHAR(100) NULL,
+           last_error NVARCHAR(MAX) NULL,
+           completed_at DATETIME2 NULL,
+           created_at DATETIME2 NOT NULL CONSTRAINT df_media_jobs_created_at DEFAULT GETDATE(),
+           updated_at DATETIME2 NOT NULL CONSTRAINT df_media_jobs_updated_at DEFAULT GETDATE(),
+           CONSTRAINT pk_media_jobs PRIMARY KEY (id),
+           CONSTRAINT chk_media_jobs_status CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
+           CONSTRAINT fk_media_jobs_video
+             FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+         );
+
+         CREATE INDEX idx_media_jobs_status_available ON dbo.media_jobs (status, available_at);
+         CREATE INDEX idx_media_jobs_video ON dbo.media_jobs (video_id);
+       END`
     );
     ensuredTable = true;
   })();
@@ -112,11 +115,10 @@ export const enqueueVideoPostUploadJob = async (videoId: string): Promise<void> 
   }
 
   await ensureMediaJobsTable();
-  const pool = getMySqlPool();
-  await pool.query(
+  await execute(
     `INSERT INTO media_jobs
        (job_type, video_id, payload_json, status, attempts, max_attempts, available_at)
-     VALUES (?, ?, ?, 'queued', 0, 5, NOW())`,
+     VALUES (?, ?, ?, 'queued', 0, 5, GETDATE())`,
     [
       'video_post_upload',
       cleanVideoId,
@@ -127,70 +129,52 @@ export const enqueueVideoPostUploadJob = async (videoId: string): Promise<void> 
 
 export const claimNextMediaJob = async (workerId: string): Promise<MediaJob | null> => {
   await ensureMediaJobsTable();
-  const pool = getMySqlPool();
-  const connection = await pool.getConnection();
 
-  try {
-    await connection.beginTransaction();
-    const [rows] = await connection.query<MediaJobRow[]>(
-      `SELECT
-         id,
-         job_type,
-         video_id,
-         payload_json,
-         status,
-         attempts,
-         max_attempts
-       FROM media_jobs
+  // Atomically claims the next available job. READPAST skips rows locked by
+  // other workers (equivalent of MySQL's FOR UPDATE SKIP LOCKED).
+  const rows = await queryRows<MediaJobRow>(
+    `WITH next_job AS (
+       SELECT TOP 1 *
+       FROM media_jobs WITH (UPDLOCK, READPAST, ROWLOCK)
        WHERE status = 'queued'
-         AND available_at <= NOW()
+         AND available_at <= GETDATE()
          AND attempts < max_attempts
        ORDER BY available_at ASC, id ASC
-       LIMIT 1
-       FOR UPDATE SKIP LOCKED`
-    );
+     )
+     UPDATE next_job
+     SET status = 'processing',
+         attempts = attempts + 1,
+         locked_at = GETDATE(),
+         locked_by = ?,
+         updated_at = GETDATE()
+     OUTPUT
+       INSERTED.id,
+       INSERTED.job_type,
+       INSERTED.video_id,
+       INSERTED.payload_json,
+       INSERTED.status,
+       INSERTED.attempts,
+       INSERTED.max_attempts`,
+    [workerId]
+  );
 
-    const row = rows[0];
-    if (!row) {
-      await connection.commit();
-      return null;
-    }
-
-    await connection.query(
-      `UPDATE media_jobs
-       SET status = 'processing',
-           attempts = attempts + 1,
-           locked_at = NOW(),
-           locked_by = ?,
-           updated_at = NOW()
-       WHERE id = ?`,
-      [workerId, row.id]
-    );
-    await connection.commit();
-
-    return {
-      ...toMediaJob(row),
-      status: 'processing',
-      attempts: Number(row.attempts) + 1
-    };
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
+  const row = rows[0];
+  if (!row) {
+    return null;
   }
+
+  return toMediaJob(row);
 };
 
 export const completeMediaJob = async (jobId: number): Promise<void> => {
-  const pool = getMySqlPool();
-  await pool.query(
+  await execute(
     `UPDATE media_jobs
      SET status = 'completed',
-         completed_at = NOW(),
+         completed_at = GETDATE(),
          locked_at = NULL,
          locked_by = NULL,
          last_error = NULL,
-         updated_at = NOW()
+         updated_at = GETDATE()
      WHERE id = ?`,
     [jobId]
   );
@@ -201,32 +185,31 @@ export const failMediaJob = async (
   errorMessage: string,
   retryDelayMs: number
 ): Promise<void> => {
-  const pool = getMySqlPool();
   const safeError = errorMessage.slice(0, 2000);
   const retrySeconds = Math.max(1, Math.floor(retryDelayMs / 1000));
 
   if (job.attempts >= job.maxAttempts) {
-    await pool.query(
+    await execute(
       `UPDATE media_jobs
        SET status = 'failed',
            last_error = ?,
            locked_at = NULL,
            locked_by = NULL,
-           updated_at = NOW()
+           updated_at = GETDATE()
        WHERE id = ?`,
       [safeError, job.id]
     );
     return;
   }
 
-  await pool.query(
+  await execute(
     `UPDATE media_jobs
      SET status = 'queued',
-         available_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
+         available_at = DATEADD(SECOND, ?, GETDATE()),
          last_error = ?,
          locked_at = NULL,
          locked_by = NULL,
-         updated_at = NOW()
+         updated_at = GETDATE()
      WHERE id = ?`,
     [retrySeconds, safeError, job.id]
   );

@@ -1,10 +1,9 @@
-import type { RowDataPacket } from 'mysql2';
-import { getMySqlPool } from '../config/mysql.js';
+import { execute, queryRows } from '../config/db.js';
 
 const DEFAULT_PASSWORD_HASH =
   '$2b$10$/bI5MF4iy79nhxd63fYnT.EVtyRS.zT1Uo4lTVqgkTBv3Mce.UiUG';
 
-interface ColumnRow extends RowDataPacket {
+interface ColumnRow {
   COLUMN_NAME: string;
 }
 
@@ -17,12 +16,10 @@ interface ColumnRow extends RowDataPacket {
  * already exists.
  */
 export async function ensurePasswordHashColumn(): Promise<void> {
-  const pool = getMySqlPool();
-
-  const [cols] = await pool.query<ColumnRow[]>(
+  const cols = await queryRows<ColumnRow>(
     `SELECT COLUMN_NAME
        FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE()
+      WHERE TABLE_CATALOG = DB_NAME()
         AND TABLE_NAME   = 'users'
         AND COLUMN_NAME  = 'password_hash'`
   );
@@ -31,11 +28,11 @@ export async function ensurePasswordHashColumn(): Promise<void> {
     return; // column already exists
   }
 
-  await pool.query(
-    "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER student_number"
+  await execute(
+    "ALTER TABLE users ADD password_hash VARCHAR(255) NOT NULL CONSTRAINT df_users_password_hash DEFAULT ''"
   );
 
-  await pool.query(
+  await execute(
     "UPDATE users SET password_hash = ? WHERE password_hash = ''",
     [DEFAULT_PASSWORD_HASH]
   );

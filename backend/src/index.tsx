@@ -1,17 +1,17 @@
 import app from './app.js';
 import { env } from './config/env.js';
-import { checkMySqlConnection } from './config/mysql.js';
+import { checkDbConnection } from './config/db.js';
 import { ensureMediaJobsTable } from './services/mediaJobs.service.js';
 import { ensurePasswordHashColumn } from './services/migrations.service.js';
 
 const startServer = async (): Promise<void> => {
-  const mysqlHealth = await checkMySqlConnection();
-  if (!mysqlHealth.ok) {
-    throw new Error(`MySQL check failed: ${mysqlHealth.message}`);
+  const dbHealth = await checkDbConnection();
+  if (!dbHealth.ok) {
+    throw new Error(`SQL Server check failed: ${dbHealth.message}`);
   }
   await ensureMediaJobsTable();
   await ensurePasswordHashColumn();
-  console.info('[backend] MySQL connection verified.');
+  console.info('[backend] SQL Server connection verified.');
 
   app.listen(env.PORT, () => {
     console.info(`[backend] API server listening on http://localhost:${env.PORT}`);

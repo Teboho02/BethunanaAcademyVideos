@@ -1,4 +1,7 @@
-name: Database Dump
+# Dumps the LEGACY MySQL database that still lives on the app server.
+# Useful for exporting the old data to migrate into Azure SQL; the app itself
+# now runs on Azure SQL Server.
+name: Database Dump (legacy MySQL)
 
 on:
   workflow_dispatch:

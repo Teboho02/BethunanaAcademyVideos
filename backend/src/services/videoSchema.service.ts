@@ -1,22 +1,19 @@
-import { getMySqlPool } from '../config/mysql.js';
-import type { RowDataPacket } from 'mysql2';
+import { execute, queryRows } from '../config/db.js';
 
 let ensuredVideoThumbnailColumns = false;
 let ensureVideoThumbnailColumnsInFlight: Promise<void> | null = null;
 
-interface ColumnExistsRow extends RowDataPacket {
+interface ColumnExistsRow {
   column_exists: number;
 }
 
 const columnExists = async (columnName: string): Promise<boolean> => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<ColumnExistsRow[]>(
-    `SELECT 1 AS column_exists
-     FROM information_schema.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
+  const rows = await queryRows<ColumnExistsRow>(
+    `SELECT TOP 1 1 AS column_exists
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_CATALOG = DB_NAME()
        AND TABLE_NAME = 'videos'
-       AND COLUMN_NAME = ?
-     LIMIT 1`,
+       AND COLUMN_NAME = ?`,
     [columnName]
   );
   return Boolean(rows[0]?.column_exists);
@@ -30,8 +27,7 @@ const addColumnIfMissing = async (
     return;
   }
 
-  const pool = getMySqlPool();
-  await pool.query(`ALTER TABLE videos ADD COLUMN ${columnDefinitionSql}`);
+  await execute(`ALTER TABLE videos ADD ${columnDefinitionSql}`);
 };
 
 export const ensureVideoThumbnailColumns = async (): Promise<void> => {
@@ -46,7 +42,7 @@ export const ensureVideoThumbnailColumns = async (): Promise<void> => {
   ensureVideoThumbnailColumnsInFlight = (async () => {
     await addColumnIfMissing(
       'thumbnail_storage_type',
-      "thumbnail_storage_type ENUM('local', 's3') NULL"
+      "thumbnail_storage_type VARCHAR(10) NULL CONSTRAINT chk_videos_thumb_storage CHECK (thumbnail_storage_type IN ('local', 's3'))"
     );
     await addColumnIfMissing(
       'thumbnail_local_path',

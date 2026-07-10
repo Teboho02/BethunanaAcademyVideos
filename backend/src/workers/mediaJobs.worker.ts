@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { RowDataPacket } from 'mysql2';
 import { env } from '../config/env.js';
-import { checkMySqlConnection, closePool, getMySqlPool } from '../config/mysql.js';
+import { checkDbConnection, closePool, execute, queryRows } from '../config/db.js';
 import {
   claimNextMediaJob,
   completeMediaJob,
@@ -17,12 +16,10 @@ const workerId = `media-worker-${process.pid}-${randomUUID().slice(0, 8)}`;
 let running = true;
 
 const processVideoPostUploadJob = async (job: MediaJob): Promise<void> => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id, duration_seconds
+  const rows = await queryRows<{ id: string; duration_seconds: number | null }>(
+    `SELECT TOP 1 id, duration_seconds
      FROM videos
-     WHERE id = ?
-     LIMIT 1`,
+     WHERE id = ?`,
     [job.videoId]
   );
   const row = rows[0];
@@ -30,10 +27,10 @@ const processVideoPostUploadJob = async (job: MediaJob): Promise<void> => {
     throw new Error(`Video ${job.videoId} not found`);
   }
 
-  await pool.query(
+  await execute(
     `UPDATE videos
      SET duration_seconds = COALESCE(duration_seconds, 0),
-         updated_at = NOW()
+         updated_at = GETDATE()
      WHERE id = ?`,
     [job.videoId]
   );
@@ -49,9 +46,9 @@ const processMediaJob = async (job: MediaJob): Promise<void> => {
 };
 
 const runWorker = async (): Promise<void> => {
-  const mysqlHealth = await checkMySqlConnection();
-  if (!mysqlHealth.ok) {
-    throw new Error(`MySQL check failed: ${mysqlHealth.message}`);
+  const dbHealth = await checkDbConnection();
+  if (!dbHealth.ok) {
+    throw new Error(`SQL Server check failed: ${dbHealth.message}`);
   }
 
   await ensureMediaJobsTable();

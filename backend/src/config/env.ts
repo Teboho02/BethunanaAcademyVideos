@@ -25,11 +25,13 @@ export const env = {
     'http://localhost:5173,http://localhost:8081,https://bethunanaacademy.co.za'
   ),
 
-  MYSQL_HOST: toNonEmptyString(process.env.MYSQL_HOST, 'localhost'),
-  MYSQL_PORT: toNumber(process.env.MYSQL_PORT, 3306),
-  MYSQL_USER: toNonEmptyString(process.env.MYSQL_USER, 'root'),
-  MYSQL_PASSWORD: process.env.MYSQL_PASSWORD ?? '',
-  MYSQL_DATABASE: toNonEmptyString(process.env.MYSQL_DATABASE, 'bethunana'),
+  // Azure SQL Server, e.g. SQLSERVER_HOST=myserver.database.windows.net
+  SQLSERVER_HOST: toNonEmptyString(process.env.SQLSERVER_HOST, 'localhost'),
+  SQLSERVER_PORT: toNumber(process.env.SQLSERVER_PORT, 1433),
+  SQLSERVER_USER: toNonEmptyString(process.env.SQLSERVER_USER, 'sa'),
+  SQLSERVER_PASSWORD: process.env.SQLSERVER_PASSWORD ?? '',
+  SQLSERVER_DATABASE: toNonEmptyString(process.env.SQLSERVER_DATABASE, 'bethunana'),
+  SQLSERVER_ENCRYPT: (process.env.SQLSERVER_ENCRYPT ?? 'true').toLowerCase() !== 'false',
 
   S3_REGION: toNonEmptyString(process.env.S3_REGION, ''),
   S3_BUCKET: toNonEmptyString(process.env.S3_BUCKET, ''),

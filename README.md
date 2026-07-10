@@ -3,7 +3,7 @@
 Full-stack learning platform for Grade 10-12 learners, with:
 - a React + Vite frontend learner/admin portal
 - an Express + TypeScript backend API
-- a MySQL-backed content and student account model
+- an Azure SQL Server-backed content and student account model
 - optional S3/Lightsail storage for uploaded lesson videos
 - watch progress + analytics tracking
 
@@ -63,7 +63,7 @@ The backend provides:
 - Video analytics per lesson and per student
 
 ### Backend Capabilities
-- MySQL-backed users/students/subjects/topics/videos/watch progress
+- SQL Server-backed users/students/subjects/topics/videos/watch progress
 - Range-based video streaming (`206 Partial Content`)
 - Thumbnail serving (local, S3, or CDN redirect)
 - Queue-based media jobs via background worker
@@ -74,7 +74,7 @@ Development flow:
 
 1. Frontend runs on `http://localhost:5173` (Vite).
 2. `/api/*` requests are proxied to backend on `http://localhost:4000`.
-3. Backend talks to MySQL and local filesystem or S3-compatible object storage.
+3. Backend talks to Azure SQL Server and local filesystem or S3-compatible object storage.
 4. A worker process polls and processes `media_jobs`.
 
 Production flow:
@@ -98,7 +98,7 @@ Production flow:
 ### Backend
 - Node.js + Express 4
 - TypeScript
-- MySQL 8 (`mysql2`)
+- Azure SQL Server (`mssql`)
 - Multer for multipart uploads
 - AWS SDK v3 (S3 integration)
 - Vitest + Supertest (integration tests)
@@ -122,9 +122,8 @@ Production flow:
 |   |   |-- routes/             # API routing
 |   |   |-- services/           # Business logic + storage adapters
 |   |   |-- data/               # Catalog projection layer
-|   |   |-- workers/            # Media job worker
-|   |   `-- scripts/            # Seeding scripts
-|   |-- schema/mysql-schema.sql # DB schema + seed baseline
+|   |   `-- workers/            # Media job worker
+|   |-- schema/sqlserver-schema.sql # DB schema + seed baseline
 |   `-- scripts/run-api-worker.mjs
 |-- public/
 |-- dist/                       # Frontend build output
@@ -135,7 +134,7 @@ Production flow:
 
 - Node.js 20+ (recommended)
 - npm 10+
-- MySQL 8+
+- An Azure SQL database (or local SQL Server 2019+)
 
 ## Quick Start (Full Stack)
 
@@ -159,11 +158,11 @@ cp .env.example .env
 ```
 
 At minimum, configure:
-- `MYSQL_HOST`
-- `MYSQL_PORT`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `MYSQL_DATABASE`
+- `SQLSERVER_HOST` (e.g. `your-server.database.windows.net`)
+- `SQLSERVER_PORT`
+- `SQLSERVER_USER`
+- `SQLSERVER_PASSWORD`
+- `SQLSERVER_DATABASE`
 
 Optional storage modes:
 - S3 mode: set `S3_REGION` + `S3_BUCKET` (and credentials as needed)
@@ -171,28 +170,17 @@ Optional storage modes:
 
 ### 3) Create Database Schema
 
-Run schema script in MySQL:
+Run the schema script against your Azure SQL database with `sqlcmd`:
 
-```sql
-SOURCE backend/schema/mysql-schema.sql;
+```bash
+sqlcmd -S your-server.database.windows.net -d bethunana -U <user> -P <password> -i backend/schema/sqlserver-schema.sql
 ```
 
 This creates core tables and inserts baseline seed data, including:
 - default admin user with student number `ADMIN001` (or your configured `ADMIN_STUDENT_NUMBER`)
 - initial Grade 10-12 subject records
 
-### 4) Optional Topic Seeding
-
-From `backend/`:
-
-```bash
-npm run seed:grade10-subjects
-npm run seed:grade10-topics
-npm run seed:grade11-topics
-npm run seed:grade12-topics
-```
-
-### 5) Start Backend (API + Worker)
+### 4) Start Backend (API + Worker)
 
 From `backend/`:
 
@@ -204,7 +192,7 @@ This runs:
 - API server (`src/index.tsx`)
 - media worker (`src/workers/mediaJobs.worker.ts`)
 
-### 6) Start Frontend
+### 5) Start Frontend
 
 From repository root (new terminal):
 
@@ -235,11 +223,12 @@ Important variables:
 - `NODE_ENV` (default: `development`)
 - `PORT` (default: `4000`)
 - `CORS_ORIGIN` (default: `http://localhost:5173`)
-- `MYSQL_HOST`
-- `MYSQL_PORT`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `MYSQL_DATABASE`
+- `SQLSERVER_HOST`
+- `SQLSERVER_PORT`
+- `SQLSERVER_USER`
+- `SQLSERVER_PASSWORD`
+- `SQLSERVER_DATABASE`
+- `SQLSERVER_ENCRYPT` (default: `true`; required by Azure SQL)
 - `ADMIN_STUDENT_NUMBER` (default: `ADMIN001`)
 - `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
 - `S3_ENDPOINT` (optional S3-compatible endpoint)
@@ -268,10 +257,6 @@ Important variables:
 - `npm run start` - run compiled API + worker
 - `npm run start:api` - run compiled API only
 - `npm run start:worker` - run compiled worker only
-- `npm run seed:grade10-subjects`
-- `npm run seed:grade10-topics`
-- `npm run seed:grade11-topics`
-- `npm run seed:grade12-topics`
 - `npm run typecheck`
 - `npm run test`
 - `npm run test:watch`
@@ -319,7 +304,7 @@ Base path: `/api`
 
 ## Database Notes
 
-Schema file: `backend/schema/mysql-schema.sql`
+Schema file: `backend/schema/sqlserver-schema.sql`
 
 Main tables:
 - `users` (admin/student identities + student numbers)
@@ -379,9 +364,10 @@ If root `dist/index.html` exists, backend serves the frontend alongside API rout
   - Ensure backend is running on `http://localhost:4000`
   - Confirm Vite proxy config is active (`vite.config.ts`)
 
-- Startup fails with MySQL connection error:
-  - Verify `MYSQL_*` env values
+- Startup fails with SQL Server connection error:
+  - Verify `SQLSERVER_*` env values
   - Confirm DB exists and schema was applied
+  - Check the Azure SQL server firewall allows your IP (or "Allow Azure services")
 
 - Upload works but playback fails:
   - Check `videos` rows have valid storage metadata

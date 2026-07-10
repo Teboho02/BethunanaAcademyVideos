@@ -1,8 +1,7 @@
-import type { RowDataPacket } from 'mysql2';
-import { getMySqlPool } from '../config/mysql.js';
+import { execute, queryRows } from '../config/db.js';
 import { HttpError } from '../types/index.js';
 
-interface WatchProgressRow extends RowDataPacket {
+interface WatchProgressRow {
   video_id: string;
   student_number: string;
   first_name: string | null;
@@ -84,28 +83,30 @@ export const saveWatchProgress = async (
   const nextPosition = toSafeNumber(positionSeconds);
   const nextDelta = toSafeNumber(watchedSecondsDelta);
 
-  const pool = getMySqlPool();
-  await pool.query(
-    `INSERT INTO watch_progress
+  // Upsert (replaces MySQL's INSERT ... ON DUPLICATE KEY UPDATE).
+  await execute(
+    `MERGE watch_progress WITH (HOLDLOCK) AS target
+     USING (SELECT ? AS video_id, ? AS student_number, ? AS position_seconds, ? AS watched_delta) AS source
+     ON target.video_id = source.video_id AND target.student_number = source.student_number
+     WHEN MATCHED THEN UPDATE SET
+       last_position_seconds = source.position_seconds,
+       total_watched_seconds = target.total_watched_seconds + source.watched_delta,
+       updated_at = GETDATE()
+     WHEN NOT MATCHED THEN INSERT
        (video_id, student_number, last_position_seconds, total_watched_seconds)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       last_position_seconds = VALUES(last_position_seconds),
-       total_watched_seconds = total_watched_seconds + VALUES(total_watched_seconds),
-       updated_at = CURRENT_TIMESTAMP`,
+       VALUES (source.video_id, source.student_number, source.position_seconds, source.watched_delta);`,
     [cleanVideoId, cleanStudentNumber, nextPosition, nextDelta]
   );
 
-  const [rows] = await pool.query<WatchProgressRow[]>(
-    `SELECT
+  const rows = await queryRows<WatchProgressRow>(
+    `SELECT TOP 1
        video_id,
        student_number,
        last_position_seconds,
        total_watched_seconds,
        updated_at
      FROM watch_progress
-     WHERE video_id = ? AND student_number = ?
-     LIMIT 1`,
+     WHERE video_id = ? AND student_number = ?`,
     [cleanVideoId, cleanStudentNumber]
   );
 
@@ -126,17 +127,15 @@ export const getWatchProgress = async (
     return null;
   }
 
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<WatchProgressRow[]>(
-    `SELECT
+  const rows = await queryRows<WatchProgressRow>(
+    `SELECT TOP 1
        video_id,
        student_number,
        last_position_seconds,
        total_watched_seconds,
        updated_at
      FROM watch_progress
-     WHERE video_id = ? AND student_number = ?
-     LIMIT 1`,
+     WHERE video_id = ? AND student_number = ?`,
     [cleanVideoId, cleanStudentNumber]
   );
   if (!rows[0]) return null;
@@ -145,8 +144,7 @@ export const getWatchProgress = async (
 
 export const getVideoAnalytics = async (videoId: string) => {
   const cleanVideoId = videoId.trim();
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<WatchProgressRow[]>(
+  const rows = await queryRows<WatchProgressRow>(
     `SELECT
        wp.video_id,
        wp.student_number,
@@ -167,8 +165,7 @@ export const getVideoAnalytics = async (videoId: string) => {
 };
 
 export const listAllVideoAnalytics = async () => {
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<WatchProgressRow[]>(
+  const rows = await queryRows<WatchProgressRow>(
     `SELECT
        wp.video_id,
        wp.student_number,

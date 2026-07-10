@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { RowDataPacket } from 'mysql2';
 import { env } from '../config/env.js';
-import { getMySqlPool } from '../config/mysql.js';
+import { execute, queryRows } from '../config/db.js';
 import type { UploadVideoInput, VideoAsset, VideoStorageType } from '../types/index.js';
 import { HttpError } from '../types/index.js';
 import { saveThumbnailToLocalStorage, saveVideoToLocalStorage } from './storage/localVideoStorage.service.js';
@@ -9,15 +8,15 @@ import { enqueueVideoPostUploadJob } from './mediaJobs.service.js';
 import { buildS3ThumbnailKey, buildS3VideoKey, uploadBufferToS3 } from './storage/s3.service.js';
 import { ensureVideoThumbnailColumns } from './videoSchema.service.js';
 
-interface SubjectRow extends RowDataPacket {
+interface SubjectRow {
   id: number;
 }
 
-interface TopicRow extends RowDataPacket {
+interface TopicRow {
   id: number;
 }
 
-interface VideoRow extends RowDataPacket {
+interface VideoRow {
   id: string;
   title: string;
   description: string;
@@ -106,19 +105,17 @@ export const uploadVideoAndRegister = async (
   const topicIdInput = metadata.topicId?.trim() ?? '';
   if (!topicIdInput) throw new HttpError(400, 'Topic is required');
 
-  const pool = getMySqlPool();
-
-  const [adminRows] = await pool.query<RowDataPacket[]>(
-    'SELECT id FROM users WHERE student_number = ? AND role = "admin" LIMIT 1',
+  const adminRows = await queryRows<{ id: string }>(
+    "SELECT TOP 1 id FROM users WHERE student_number = ? AND role = 'admin'",
     [env.ADMIN_STUDENT_NUMBER]
   );
-  const adminId = (adminRows[0] as { id?: string } | undefined)?.id;
+  const adminId = adminRows[0]?.id;
   if (!adminId) {
     throw new HttpError(500, 'Admin user not found in database. Run the DB seed SQL first.');
   }
 
-  const [subjectRows] = await pool.query<SubjectRow[]>(
-    'SELECT id FROM subjects WHERE code = ? AND is_active = 1 LIMIT 1',
+  const subjectRows = await queryRows<SubjectRow>(
+    'SELECT TOP 1 id FROM subjects WHERE code = ? AND is_active = 1',
     [subjectCode]
   );
   const subjectDbId = subjectRows[0]?.id;
@@ -126,8 +123,8 @@ export const uploadVideoAndRegister = async (
     throw new HttpError(404, 'Subject not found');
   }
 
-  const [topicRows] = await pool.query<TopicRow[]>(
-    'SELECT id FROM topics WHERE id = ? AND subject_id = ? AND is_active = 1 LIMIT 1',
+  const topicRows = await queryRows<TopicRow>(
+    'SELECT TOP 1 id FROM topics WHERE id = ? AND subject_id = ? AND is_active = 1',
     [topicIdInput, subjectDbId]
   );
   const topicDbId = topicRows[0]?.id;
@@ -186,7 +183,7 @@ export const uploadVideoAndRegister = async (
     }
   }
 
-  await pool.query(
+  await execute(
     `INSERT INTO videos
        (id, topic_id, title, description, original_filename, mime_type, size_bytes,
         storage_type, local_path, s3_bucket, s3_key,
@@ -240,14 +237,12 @@ export const uploadVideoAndRegister = async (
 
 export const listVideoAssets = async (): Promise<VideoAsset[]> => {
   await ensureVideoThumbnailColumns();
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<VideoRow[]>(`${VIDEO_SELECT_SQL} ORDER BY v.created_at DESC`);
+  const rows = await queryRows<VideoRow>(`${VIDEO_SELECT_SQL} ORDER BY v.created_at DESC`);
   return rows.map(rowToVideoAsset);
 };
 
 export const deleteVideoAsset = async (videoId: string): Promise<void> => {
-  const pool = getMySqlPool();
-  const [result] = await pool.query<import('mysql2').ResultSetHeader>(
+  const result = await execute(
     'DELETE FROM videos WHERE id = ?',
     [videoId]
   );
@@ -256,9 +251,8 @@ export const deleteVideoAsset = async (videoId: string): Promise<void> => {
 
 export const getVideoAssetById = async (videoId: string): Promise<VideoAsset | null> => {
   await ensureVideoThumbnailColumns();
-  const pool = getMySqlPool();
-  const [rows] = await pool.query<VideoRow[]>(
-    `${VIDEO_SELECT_SQL} AND v.id = ? LIMIT 1`,
+  const rows = await queryRows<VideoRow>(
+    `${VIDEO_SELECT_SQL} AND v.id = ?`,
     [videoId]
   );
   if (!rows[0]) return null;
