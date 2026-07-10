@@ -21,8 +21,9 @@ REPO_URL="https://github.com/Teboho02/BethunanaAcademyVideos.git"
 DOMAIN="bethunanaacademy.co.za"
 
 # ------------------------------------------------------------
-# 2GB swap — required: t3.nano has 512MB RAM and the deploy
-# workflow builds the frontend (vite) and backend (tsc) on-box.
+# 2GB swap — the deploy workflow builds the frontend (vite) and
+# backend (tsc) on-box, which needs more memory than the small
+# instance sizes (t3.micro = 1GB) have.
 # ------------------------------------------------------------
 if [ ! -f /swapfile ]; then
   echo ">>> Creating 2GB swap file..."

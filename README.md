@@ -83,6 +83,11 @@ Production flow:
 2. Build backend to `backend/dist/`.
 3. Start backend; it serves API and (if present) frontend static files.
 
+Production runs on an EC2 instance (af-south-1) behind Caddy, with a
+Lambda-driven schedule that resizes the instance between t3.micro (off-peak)
+and t3.small (peak). Pushing to `main` deploys via GitHub Actions. Full
+setup and operations runbook: `deploy/EC2-MIGRATION.md`.
+
 ## Tech Stack
 
 ### Frontend
