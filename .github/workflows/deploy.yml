@@ -52,14 +52,8 @@ jobs:
             fi
             echo ">>> PM2: $(pm2 --version)"
 
-            # Nginx
-            if ! command -v nginx &> /dev/null; then
-              echo ">>> Nginx not found, installing..."
-              sudo apt-get install -y nginx
-              sudo systemctl enable nginx
-              sudo systemctl start nginx
-            fi
-            echo ">>> Nginx: $(sudo systemctl is-active nginx)"
+            # Web server (Caddy on EC2 / nginx on the old Lightsail box) is
+            # provisioned once by deploy/ec2-setup.sh, not per-deploy.
 
             # -----------------------------
             # 2. DATABASE
