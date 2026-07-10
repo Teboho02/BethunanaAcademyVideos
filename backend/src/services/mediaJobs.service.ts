@@ -127,6 +127,35 @@ export const enqueueVideoPostUploadJob = async (videoId: string): Promise<void> 
   );
 };
 
+/**
+ * Enqueues post-upload jobs for published videos that still need processing
+ * (no duration or no stored thumbnail), skipping videos that already have a
+ * queued or in-flight job. Lets the worker backfill videos uploaded before
+ * duration extraction and server-side thumbnail generation existed.
+ */
+export const enqueueMissingMediaJobs = async (): Promise<number> => {
+  await ensureMediaJobsTable();
+  const result = await execute(
+    `INSERT INTO media_jobs
+       (job_type, video_id, payload_json, status, attempts, max_attempts, available_at)
+     SELECT 'video_post_upload', v.id, NULL, 'queued', 0, 5, GETDATE()
+     FROM videos v
+     WHERE v.status = 'published'
+       AND (
+         v.duration_seconds IS NULL
+         OR v.duration_seconds <= 0
+         OR v.thumbnail_storage_type IS NULL
+       )
+       AND NOT EXISTS (
+         SELECT 1
+         FROM media_jobs j
+         WHERE j.video_id = v.id
+           AND j.status IN ('queued', 'processing')
+       )`
+  );
+  return result.affectedRows;
+};
+
 export const claimNextMediaJob = async (workerId: string): Promise<MediaJob | null> => {
   await ensureMediaJobsTable();
 

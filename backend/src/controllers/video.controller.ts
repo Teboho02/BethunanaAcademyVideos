@@ -43,12 +43,20 @@ export const uploadVideoHandler: RequestHandler = async (req, res, next) => {
         ? req.body.title
         : videoFile.originalname;
 
+    const durationSecondsRaw =
+      typeof req.body.durationSeconds === 'string' ? Number(req.body.durationSeconds) : NaN;
+    const durationSeconds =
+      Number.isFinite(durationSecondsRaw) && durationSecondsRaw > 0
+        ? durationSecondsRaw
+        : undefined;
+
     const video = await uploadVideoAndRegister(videoFile, {
       title,
       description: typeof req.body.description === 'string' ? req.body.description : '',
       subjectId: typeof req.body.subjectId === 'string' ? req.body.subjectId : undefined,
       topicId: typeof req.body.topicId === 'string' ? req.body.topicId : undefined,
-      thumbnailFile
+      thumbnailFile,
+      durationSeconds
     });
 
     res.status(201).json({

@@ -136,6 +136,10 @@ export const uploadVideoAndRegister = async (
   const videoId = randomUUID();
   const now = new Date().toISOString();
   const thumbnailFile = metadata.thumbnailFile;
+  const durationSeconds =
+    Number.isFinite(metadata.durationSeconds) && (metadata.durationSeconds ?? 0) > 0
+      ? Math.round(Number(metadata.durationSeconds))
+      : null;
 
   if (thumbnailFile) {
     if (!thumbnailFile.mimetype.startsWith('image/')) {
@@ -186,10 +190,11 @@ export const uploadVideoAndRegister = async (
   await execute(
     `INSERT INTO videos
        (id, topic_id, title, description, original_filename, mime_type, size_bytes,
+        duration_seconds,
         storage_type, local_path, s3_bucket, s3_key,
         thumbnail_storage_type, thumbnail_local_path, thumbnail_s3_bucket, thumbnail_s3_key, thumbnail_mime_type,
         uploaded_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       videoId,
       topicDbId,
@@ -198,6 +203,7 @@ export const uploadVideoAndRegister = async (
       file.originalname,
       file.mimetype,
       file.size,
+      durationSeconds,
       videoStorageType,
       localPath,
       s3Bucket,

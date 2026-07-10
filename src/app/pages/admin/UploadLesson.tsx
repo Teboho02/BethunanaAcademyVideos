@@ -19,14 +19,24 @@ interface VideoFormData {
   videoFile: File | null;
 }
 
-const generateThumbnailFromVideo = (videoFile: File): Promise<File> =>
+interface VideoMetadata {
+  thumbnail: File;
+  durationSeconds: number | null;
+}
+
+const extractVideoMetadata = (videoFile: File): Promise<VideoMetadata> =>
   new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(videoFile);
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
     let settled = false;
+    let durationSeconds: number | null = null;
+    let seekTimeoutId: number | undefined;
 
     const cleanup = () => {
+      if (seekTimeoutId !== undefined) {
+        window.clearTimeout(seekTimeoutId);
+      }
       URL.revokeObjectURL(objectUrl);
       video.removeAttribute('src');
       video.load();
@@ -43,7 +53,7 @@ const generateThumbnailFromVideo = (videoFile: File): Promise<File> =>
       if (settled) return;
       settled = true;
       cleanup();
-      resolve(file);
+      resolve({ thumbnail: file, durationSeconds });
     };
 
     const captureFrame = () => {
@@ -90,14 +100,24 @@ const generateThumbnailFromVideo = (videoFile: File): Promise<File> =>
     video.playsInline = true;
     video.onerror = () => rejectOnce('Unable to load video for thumbnail generation.');
     video.onloadedmetadata = () => {
-      const hasDuration = Number.isFinite(video.duration) && video.duration > 0;
-      if (!hasDuration) {
-        captureFrame();
-        return;
-      }
+      const duration =
+        Number.isFinite(video.duration) && video.duration > 0 ? video.duration : null;
+      durationSeconds = duration;
 
-      const captureTime = Math.min(Math.max(video.duration * 0.1, 0.1), 5);
-      video.currentTime = captureTime;
+      // Seek to at least 1 second so the capture skips black opening frames.
+      // Very short clips fall back to their midpoint.
+      const captureTime =
+        duration === null ? 1 : duration < 2 ? duration / 2 : Math.min(Math.max(video.duration * 0.1, 1), 5);
+
+      // If the seek never completes, capture whatever frame is available
+      // rather than hanging the upload form.
+      seekTimeoutId = window.setTimeout(() => captureFrame(), 4000);
+
+      try {
+        video.currentTime = captureTime;
+      } catch {
+        captureFrame();
+      }
     };
     video.onseeked = () => captureFrame();
     video.src = objectUrl;
@@ -157,6 +177,7 @@ export function UploadLesson() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState('');
   const [thumbnailGenerating, setThumbnailGenerating] = useState(false);
   const [thumbnailError, setThumbnailError] = useState('');
@@ -225,6 +246,7 @@ export function UploadLesson() {
     setThumbnailError('');
     setThumbnailGenerating(false);
     setThumbnailWithPreview(null);
+    setVideoDurationSeconds(null);
 
     if (!file) {
       return;
@@ -233,11 +255,12 @@ export function UploadLesson() {
     setThumbnailGenerating(true);
 
     try {
-      const generatedThumbnail = await generateThumbnailFromVideo(file);
+      const { thumbnail, durationSeconds } = await extractVideoMetadata(file);
       if (taskId !== thumbnailTaskIdRef.current) {
         return;
       }
-      setThumbnailWithPreview(generatedThumbnail);
+      setThumbnailWithPreview(thumbnail);
+      setVideoDurationSeconds(durationSeconds);
     } catch (error) {
       if (taskId !== thumbnailTaskIdRef.current) {
         return;
@@ -281,6 +304,9 @@ export function UploadLesson() {
       if (thumbnailFile) {
         body.append('thumbnail', thumbnailFile);
       }
+      if (videoDurationSeconds && videoDurationSeconds > 0) {
+        body.append('durationSeconds', String(Math.round(videoDurationSeconds)));
+      }
 
       await uploadVideoWithProgress(body, setUploadProgress);
 
@@ -295,6 +321,7 @@ export function UploadLesson() {
         videoFile: null
       });
       setThumbnailFile(null);
+      setVideoDurationSeconds(null);
       setThumbnailError('');
       resetThumbnailPreview();
       if (fileInputRef.current) {

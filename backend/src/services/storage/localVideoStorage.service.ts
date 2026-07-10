@@ -32,19 +32,25 @@ export const saveVideoToLocalStorage = async (
   return { storageKey: key, absolutePath };
 };
 
-export const saveThumbnailToLocalStorage = async (
-  file: Express.Multer.File
+export const saveThumbnailBufferToLocalStorage = async (
+  buffer: Buffer,
+  originalFilename: string
 ): Promise<{ storageKey: string; absolutePath: string }> => {
   await ensureLocalStorageRoot();
 
-  const key = `thumbnails/${Date.now()}-${Math.floor(Math.random() * 1_000_000)}-${sanitizeFilename(file.originalname)}`;
+  const key = `thumbnails/${Date.now()}-${Math.floor(Math.random() * 1_000_000)}-${sanitizeFilename(originalFilename)}`;
   const absolutePath = path.resolve(storageRoot, key);
   assertInStorageRoot(absolutePath);
 
   await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, file.buffer);
+  await writeFile(absolutePath, buffer);
   return { storageKey: key, absolutePath };
 };
+
+export const saveThumbnailToLocalStorage = async (
+  file: Express.Multer.File
+): Promise<{ storageKey: string; absolutePath: string }> =>
+  saveThumbnailBufferToLocalStorage(file.buffer, file.originalname);
 
 export const resolveLocalVideoPath = (storageKey: string): string => {
   const absolutePath = path.resolve(storageRoot, storageKey);

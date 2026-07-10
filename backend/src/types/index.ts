@@ -83,6 +83,7 @@ export interface UploadVideoInput {
   subjectId?: string;
   topicId?: string;
   thumbnailFile?: Express.Multer.File;
+  durationSeconds?: number;
 }
 
 export interface ApiSuccess<T> {
