@@ -245,7 +245,18 @@ const runWorker = async (): Promise<void> => {
   console.info(`[worker:${workerId}] Started media jobs worker.`);
 
   while (running) {
-    const job = await claimNextMediaJob(workerId);
+    let job: MediaJob | null = null;
+    try {
+      job = await claimNextMediaJob(workerId);
+    } catch (error) {
+      // A claim failure must not crash the worker (and with it the API,
+      // since both run under one PM2 process) — log, back off, retry.
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[worker:${workerId}] Failed to claim next job: ${message}`);
+      await sleep(env.MEDIA_JOB_RETRY_DELAY_MS);
+      continue;
+    }
+
     if (!job) {
       await sleep(env.MEDIA_JOB_POLL_INTERVAL_MS);
       continue;

@@ -161,8 +161,21 @@ export const claimNextMediaJob = async (workerId: string): Promise<MediaJob | nu
 
   // Atomically claims the next available job. READPAST skips rows locked by
   // other workers (equivalent of MySQL's FOR UPDATE SKIP LOCKED).
+  // OUTPUT must go INTO a table variable because media_jobs has an
+  // updated_at trigger, and SQL Server rejects a bare OUTPUT clause on
+  // tables with triggers (error 334).
   const rows = await queryRows<MediaJobRow>(
-    `WITH next_job AS (
+    `DECLARE @claimed TABLE (
+       id BIGINT,
+       job_type VARCHAR(64),
+       video_id CHAR(36),
+       payload_json NVARCHAR(MAX),
+       status VARCHAR(20),
+       attempts TINYINT,
+       max_attempts TINYINT
+     );
+
+     WITH next_job AS (
        SELECT TOP 1 *
        FROM media_jobs WITH (UPDLOCK, READPAST, ROWLOCK)
        WHERE status = 'queued'
@@ -183,7 +196,11 @@ export const claimNextMediaJob = async (workerId: string): Promise<MediaJob | nu
        INSERTED.payload_json,
        INSERTED.status,
        INSERTED.attempts,
-       INSERTED.max_attempts`,
+       INSERTED.max_attempts
+     INTO @claimed (id, job_type, video_id, payload_json, status, attempts, max_attempts);
+
+     SELECT id, job_type, video_id, payload_json, status, attempts, max_attempts
+     FROM @claimed;`,
     [workerId]
   );
 
