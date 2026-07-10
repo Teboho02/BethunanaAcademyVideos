@@ -27,7 +27,12 @@ export const enrollStudentHandler: RequestHandler = async (req, res, next) => {
       throw new HttpError(400, 'Grade is required');
     }
 
-    const student = await enrollStudent(name, surname, grade);
+    // The exams platform marks its sync calls so we do not sync back to it.
+    const source = typeof req.body.source === 'string' ? req.body.source : '';
+
+    const student = await enrollStudent(name, surname, grade, {
+      skipExternalSync: source === 'baonline'
+    });
     res.status(201).json({
       success: true,
       data: student,

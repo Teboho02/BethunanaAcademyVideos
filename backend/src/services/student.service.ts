@@ -120,7 +120,8 @@ const syncStudentToExternalSystem = async (student: Student): Promise<void> => {
 export const enrollStudent = async (
   name: string,
   surname: string,
-  grade: number
+  grade: number,
+  options: { skipExternalSync?: boolean } = {}
 ): Promise<Student> => {
   const cleanName = name.trim();
   const cleanSurname = surname.trim();
@@ -128,6 +129,28 @@ export const enrollStudent = async (
 
   if (!cleanName || !cleanSurname) {
     throw new HttpError(400, 'Name and surname are required');
+  }
+
+  // Loop guard: the exams platform and this app sync enrollments to each
+  // other, and a bug on either side can bounce the same student back and
+  // forth forever (this once created 554 accounts in 4 minutes). Refuse
+  // to create the same name+grade twice in quick succession.
+  const recentDuplicate = await queryRows<{ id: string }>(
+    `SELECT TOP 1 u.id
+     FROM users u
+     INNER JOIN students s ON s.user_id = u.id
+     WHERE u.role = 'student'
+       AND u.grade_level = ?
+       AND s.first_name = ?
+       AND s.last_name = ?
+       AND u.created_at > DATEADD(SECOND, -120, GETDATE())`,
+    [cleanGrade, cleanName, cleanSurname]
+  );
+  if (recentDuplicate[0]) {
+    throw new HttpError(
+      409,
+      'A student with this name and grade was enrolled moments ago. Wait two minutes if you really need a second identical account.'
+    );
   }
 
   const studentId = randomUUID();
@@ -173,7 +196,11 @@ export const enrollStudent = async (
     throw new HttpError(500, 'Failed to create student account');
   }
 
-  await syncStudentToExternalSystem(createdStudent);
+  // Enrollments that originate from the exams platform must not be synced
+  // back to it — that is how the enrollment ping-pong loop starts.
+  if (!options.skipExternalSync) {
+    await syncStudentToExternalSystem(createdStudent);
+  }
 
   return createdStudent;
 };
