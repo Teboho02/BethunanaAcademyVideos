@@ -100,6 +100,9 @@ jobs:
             cd "${APP_DIR}/backend"
             npm install
 
+            echo ">>> Building backend..."
+            npm run build
+
             # -----------------------------
             # 6. RESTART APP WITH PM2
             # -----------------------------
