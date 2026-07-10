@@ -104,10 +104,13 @@ jobs:
             # a leftover node process holding port 4000 makes every new API
             # start die with EADDRINUSE while the stale code keeps serving.
             echo ">>> Restarting app with PM2..."
+            # The [.]/[s] character classes stop pkill from matching this
+            # script's own command line (the ssh action passes the whole
+            # script as one command string).
             pm2 delete "${APP_NAME}" > /dev/null 2>&1 || true
-            pkill -f "run-api-worker.mjs" || true
-            pkill -f "backend/dist/index.js" || true
-            pkill -f "backend/dist/workers" || true
+            pkill -f "run-api-worker[.]mjs" || true
+            pkill -f "backend/dist/index[.]js" || true
+            pkill -f "backend/dist/worker[s]" || true
             sleep 2
 
             cd "${APP_DIR}/backend"
