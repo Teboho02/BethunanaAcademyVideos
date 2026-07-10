@@ -100,14 +100,20 @@ jobs:
             # -----------------------------
             # 6. RESTART APP WITH PM2
             # -----------------------------
+            # Delete (not restart) and kill any orphaned backend processes:
+            # a leftover node process holding port 4000 makes every new API
+            # start die with EADDRINUSE while the stale code keeps serving.
             echo ">>> Restarting app with PM2..."
-            if pm2 describe "${APP_NAME}" > /dev/null 2>&1; then
-              pm2 restart "${APP_NAME}"
-            else
-              pm2 start npm --name "${APP_NAME}" -- run start
-              pm2 save
-              pm2 startup systemd -u ${USER} --hp /home/${USER} || true
-            fi
+            pm2 delete "${APP_NAME}" > /dev/null 2>&1 || true
+            pkill -f "run-api-worker.mjs" || true
+            pkill -f "backend/dist/index.js" || true
+            pkill -f "backend/dist/workers" || true
+            sleep 2
+
+            cd "${APP_DIR}/backend"
+            pm2 start npm --name "${APP_NAME}" -- run start
+            pm2 save
+            pm2 startup systemd -u ${USER} --hp /home/${USER} || true
 
             pm2 list
             echo ">>> [DONE] Deploy complete!"

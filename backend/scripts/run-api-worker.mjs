@@ -2,14 +2,18 @@ import { spawn } from 'node:child_process';
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev';
 
+// In start mode, spawn node directly (no npm wrapper, no shell) so that
+// child.kill() reaches the actual server process. Killing a shell/npm
+// wrapper orphans the underlying node process, which then keeps the port
+// bound and blocks every subsequent restart.
 const processSpecs = mode === 'start'
   ? [
-      { label: 'api', command: 'npm', args: ['run', 'start:api'] },
-      { label: 'worker', command: 'npm', args: ['run', 'start:worker'] }
+      { label: 'api', command: process.execPath, args: ['dist/index.js'], shell: false },
+      { label: 'worker', command: process.execPath, args: ['dist/workers/mediaJobs.worker.js'], shell: false }
     ]
   : [
-      { label: 'api', command: 'npm', args: ['run', 'dev:api'] },
-      { label: 'worker', command: 'npm', args: ['run', 'dev:worker'] }
+      { label: 'api', command: 'npm', args: ['run', 'dev:api'], shell: true },
+      { label: 'worker', command: 'npm', args: ['run', 'dev:worker'], shell: true }
     ];
 
 const children = [];
@@ -33,7 +37,7 @@ const shutdownAll = (signal = 'SIGTERM') => {
 for (const spec of processSpecs) {
   const child = spawn(spec.command, spec.args, {
     stdio: 'inherit',
-    shell: true,
+    shell: spec.shell,
     env: process.env
   });
 
