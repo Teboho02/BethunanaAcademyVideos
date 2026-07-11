@@ -1,13 +1,6 @@
 import { Link, useNavigate } from 'react-router';
-import { User, LogOut, Shield, BookOpen, Menu } from 'lucide-react';
+import { LogOut, Shield, BookOpen } from 'lucide-react';
 import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { SidebarTrigger } from './ui/sidebar';
@@ -80,7 +73,7 @@ export function Header({ user, onLogout, variant = 'default' }: HeaderProps) {
             {user.role}
           </Badge>
 
-          {variant !== 'admin' && user.role === 'student' && (
+          {variant !== 'admin' && (
             <Button
               variant="outline"
               size="sm"
@@ -92,47 +85,19 @@ export function Header({ user, onLogout, variant = 'default' }: HeaderProps) {
             </Button>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-secondary/20 hover:ring-secondary/40 transition-all">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatar} alt={user.username} />
-                  <AvatarFallback>
-                    {user.username.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium text-sm">{user.username}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {user.role}
-                  </p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              {user.role === 'admin' && (
-                <DropdownMenuItem onClick={() => navigate('/admin')}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  <span>Admin Panel</span>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleSignOut}
-                className="text-destructive"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="ghost"
+            aria-label="Open profile"
+            className="relative h-10 w-10 rounded-full ring-2 ring-secondary/20 hover:ring-secondary/40 transition-all"
+            onClick={() => navigate('/profile')}
+          >
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user.avatar} alt={user.username} />
+              <AvatarFallback>
+                {user.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
         </div>
       </div>
     </header>

@@ -89,7 +89,12 @@ export function AdminSidebar({ user, onLogout }: AdminSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4 space-y-3">
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Open profile"
+          className="flex w-full items-center gap-3 rounded-md text-left hover:bg-sidebar-accent transition-colors"
+          onClick={() => navigate('/profile')}
+        >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.avatar} alt={user.username} />
             <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
@@ -98,7 +103,7 @@ export function AdminSidebar({ user, onLogout }: AdminSidebarProps) {
             <span className="text-sm font-medium leading-none truncate">{user.username}</span>
             <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
           </div>
-        </div>
+        </button>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
