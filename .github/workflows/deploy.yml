@@ -98,6 +98,16 @@ jobs:
             npm run build
 
             # -----------------------------
+            # 5b. AUTH SECRETS IN backend/.env
+            # -----------------------------
+            # Written once from GitHub secrets; existing values are kept.
+            touch "${APP_DIR}/backend/.env"
+            grep -q '^JWT_SECRET=' "${APP_DIR}/backend/.env" \
+              || echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' >> "${APP_DIR}/backend/.env"
+            grep -q '^ENROLL_SYNC_SECRET=' "${APP_DIR}/backend/.env" \
+              || echo 'ENROLL_SYNC_SECRET=${{ secrets.ENROLL_SYNC_SECRET }}' >> "${APP_DIR}/backend/.env"
+
+            # -----------------------------
             # 6. RESTART APP WITH PM2
             # -----------------------------
             # Delete (not restart) and kill any orphaned backend processes:

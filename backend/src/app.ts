@@ -9,6 +9,9 @@ import { env } from './config/env.js';
 import { HttpError } from './types/index.js';
 
 const app = express();
+// Behind Caddy: trust X-Forwarded-* so req.secure reflects the real protocol
+// (used to mark session cookies as Secure over HTTPS).
+app.set('trust proxy', 1);
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendDistPath = path.resolve(appDir, '../../dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');

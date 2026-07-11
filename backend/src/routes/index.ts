@@ -4,6 +4,7 @@ import videoRouter from './video.routes.js';
 import contentRouter from './content.routes.js';
 import authRouter from './auth.routes.js';
 import topicRouter from './topic.routes.js';
+import { requireAdmin } from '../middleware/auth.middleware.js';
 
 const apiRouter = Router();
 
@@ -18,7 +19,7 @@ apiRouter.get('/health', (_req, res) => {
 });
 
 apiRouter.use('/admin/students', studentRouter);
-apiRouter.use('/admin/topics', topicRouter);
+apiRouter.use('/admin/topics', requireAdmin, topicRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/videos', videoRouter);
 apiRouter.use('/content', contentRouter);

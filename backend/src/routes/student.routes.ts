@@ -5,12 +5,14 @@ import {
   enrollStudentHandler,
   listStudentsHandler
 } from '../controllers/student.controller.js';
+import { requireAdmin, requireAdminOrSyncSecret } from '../middleware/auth.middleware.js';
 
 const studentRouter = Router();
 
-studentRouter.post('/enroll', enrollStudentHandler);
-studentRouter.get('/', listStudentsHandler);
-studentRouter.patch('/:id/deactivate', deactivateStudentHandler);
-studentRouter.delete('/:id', deleteStudentHandler);
+// Enroll also accepts trusted server-to-server calls from the exams platform.
+studentRouter.post('/enroll', requireAdminOrSyncSecret, enrollStudentHandler);
+studentRouter.get('/', requireAdmin, listStudentsHandler);
+studentRouter.patch('/:id/deactivate', requireAdmin, deactivateStudentHandler);
+studentRouter.delete('/:id', requireAdmin, deleteStudentHandler);
 
 export default studentRouter;

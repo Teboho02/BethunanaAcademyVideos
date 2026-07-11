@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcrypt';
+import { env } from '../config/env.js';
 import { execute, isDuplicateKeyError, queryRows, withTransaction } from '../config/db.js';
 import type { Student, StudentGrade } from '../types/index.js';
 import { HttpError } from '../types/index.js';
@@ -100,7 +101,12 @@ const syncStudentToExternalSystem = async (student: Student): Promise<void> => {
   try {
     response = await fetch('https://baonlineexaminations.com/api/students/from-existing', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Authenticates this server-to-server call; the exams platform
+        // rejects sync requests without the shared secret.
+        'X-Sync-Secret': env.ENROLL_SYNC_SECRET
+      },
       body: JSON.stringify({
         firstName: student.name,
         lastName: student.surname,

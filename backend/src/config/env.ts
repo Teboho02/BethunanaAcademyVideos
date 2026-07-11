@@ -48,5 +48,11 @@ export const env = {
   MAX_UPLOAD_BYTES: toNumber(process.env.MAX_UPLOAD_BYTES, 1024 * 1024 * 1024),
   MEDIA_JOB_POLL_INTERVAL_MS: toNumber(process.env.MEDIA_JOB_POLL_INTERVAL_MS, 2000),
   MEDIA_JOB_RETRY_DELAY_MS: toNumber(process.env.MEDIA_JOB_RETRY_DELAY_MS, 10000),
-  ADMIN_STUDENT_NUMBER: toNonEmptyString(process.env.ADMIN_STUDENT_NUMBER, 'ADMIN001')
+  ADMIN_STUDENT_NUMBER: toNonEmptyString(process.env.ADMIN_STUDENT_NUMBER, 'ADMIN001'),
+
+  // Signs session cookies. Set in production so sessions survive restarts.
+  JWT_SECRET: toNonEmptyString(process.env.JWT_SECRET, ''),
+  // Shared secret for server-to-server enrollment sync with the exams
+  // platform. Must match the exams platform's SyncSecret setting.
+  ENROLL_SYNC_SECRET: toNonEmptyString(process.env.ENROLL_SYNC_SECRET, '')
 } as const;

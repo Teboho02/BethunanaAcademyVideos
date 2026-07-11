@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import bcrypt from 'bcrypt';
 import { env } from '../config/env.js';
+import { clearSessionCookie, issueSessionCookie } from '../middleware/auth.middleware.js';
 import { authenticateStudentByNumber, getUserPasswordHash } from '../services/student.service.js';
 import { HttpError } from '../types/index.js';
 
@@ -29,6 +30,7 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
     }
 
     if (studentNumber.trim().toLowerCase() === env.ADMIN_STUDENT_NUMBER.toLowerCase()) {
+      issueSessionCookie(req, res, { role: 'admin', studentNumber: studentNumber.trim() });
       res.status(200).json({
         success: true,
         data: {
@@ -40,6 +42,7 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
     }
 
     const student = await authenticateStudentByNumber(studentNumber);
+    issueSessionCookie(req, res, { role: 'student', studentNumber: student.studentNumber });
     res.status(200).json({
       success: true,
       data: {
@@ -53,4 +56,9 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const logoutHandler: RequestHandler = (_req, res) => {
+  clearSessionCookie(res);
+  res.status(200).json({ success: true, data: null, message: 'Signed out' });
 };
