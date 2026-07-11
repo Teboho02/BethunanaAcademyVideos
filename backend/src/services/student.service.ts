@@ -69,6 +69,34 @@ export const getUserPasswordHash = async (
   return rows[0]?.password_hash ?? null;
 };
 
+export const changeUserPassword = async (
+  studentNumber: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  if (newPassword.length < 6) {
+    throw new HttpError(400, 'New password must be at least 6 characters');
+  }
+
+  const storedHash = await getUserPasswordHash(studentNumber);
+  if (!storedHash) {
+    throw new HttpError(404, 'Account not found');
+  }
+
+  const currentValid = await bcrypt.compare(currentPassword, storedHash);
+  if (!currentValid) {
+    throw new HttpError(401, 'Current password is incorrect');
+  }
+
+  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await execute(
+    `UPDATE users
+     SET password_hash = ?, updated_at = GETDATE()
+     WHERE LOWER(student_number) = LOWER(?) AND status = 'active'`,
+    [newHash, studentNumber]
+  );
+};
+
 const findStudentById = async (studentId: string): Promise<Student | null> => {
   const rows = await queryRows<StudentRow>(
     `

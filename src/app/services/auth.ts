@@ -22,6 +22,21 @@ const parseErrorMessage = async (response: Response): Promise<string> => {
   }
 };
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const response = await fetch(`${AUTH_API_BASE}/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+}
+
 export async function loginWithStudentNumber(studentNumber: string, password: string): Promise<
   | { role: 'admin'; studentNumber: string; name?: string; surname?: string }
   | { role: 'student'; studentNumber: string; grade: number; name?: string; surname?: string }

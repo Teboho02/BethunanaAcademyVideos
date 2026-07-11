@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { User, Mail, Shield, Calendar, LogOut, Home } from 'lucide-react';
+import { User, Shield, LogOut, Home, KeyRound, CheckCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { Separator } from '../../components/ui/separator';
 import { PageHero } from '../../components/PageHero';
+import { changePassword } from '../../services/auth';
 
 interface ProfileProps {
   user: {
@@ -17,24 +21,48 @@ interface ProfileProps {
 
 export function Profile({ user, onLogout }: ProfileProps) {
   const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const handleLogout = () => {
     onLogout();
     navigate('/login');
   };
 
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setPasswordSuccess('Your password has been updated.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Failed to change password.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const infoRows = [
     { icon: User, label: 'Username', value: user.username },
-    { icon: Mail, label: 'Email', value: `${user.username}@bethunana.ac.za` },
-    {
-      icon: Shield,
-      label: 'Role',
-      value: user.role,
-      extra: user.role === 'admin'
-        ? 'You have administrative privileges to upload and manage videos'
-        : 'You have access to all educational content for Grade 10–12',
-    },
-    { icon: Calendar, label: 'Member Since', value: 'January 2026' },
   ];
 
   return (
@@ -90,12 +118,77 @@ export function Profile({ user, onLogout }: ProfileProps) {
                   <div className="flex-1">
                     <p className="font-medium text-sm text-muted-foreground">{row.label}</p>
                     <p className="text-base capitalize">{row.value}</p>
-                    {row.extra && (
-                      <p className="text-sm text-muted-foreground mt-0.5">{row.extra}</p>
-                    )}
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* Change Password */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5" />
+                Change Password
+              </CardTitle>
+              <CardDescription>Update the password you use to sign in</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {passwordError && (
+                  <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {passwordError}
+                  </p>
+                )}
+
+                {passwordSuccess && (
+                  <p className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                    <CheckCircle className="h-4 w-4 shrink-0" />
+                    {passwordSuccess}
+                  </p>
+                )}
+
+                <Button type="submit" disabled={passwordSaving}>
+                  {passwordSaving ? 'Updating...' : 'Update Password'}
+                </Button>
+              </form>
             </CardContent>
           </Card>
 

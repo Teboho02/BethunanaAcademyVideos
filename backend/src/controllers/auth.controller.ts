@@ -1,8 +1,16 @@
 import type { RequestHandler } from 'express';
 import bcrypt from 'bcrypt';
 import { env } from '../config/env.js';
-import { clearSessionCookie, issueSessionCookie } from '../middleware/auth.middleware.js';
-import { authenticateStudentByNumber, getUserPasswordHash } from '../services/student.service.js';
+import {
+  clearSessionCookie,
+  getSessionUser,
+  issueSessionCookie
+} from '../middleware/auth.middleware.js';
+import {
+  authenticateStudentByNumber,
+  changeUserPassword,
+  getUserPasswordHash
+} from '../services/student.service.js';
 import { HttpError } from '../types/index.js';
 
 export const loginHandler: RequestHandler = async (req, res, next) => {
@@ -61,4 +69,29 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
 export const logoutHandler: RequestHandler = (_req, res) => {
   clearSessionCookie(res);
   res.status(200).json({ success: true, data: null, message: 'Signed out' });
+};
+
+export const changePasswordHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      throw new HttpError(401, 'Sign in required');
+    }
+
+    const currentPassword =
+      typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+
+    if (!currentPassword) {
+      throw new HttpError(400, 'Current password is required');
+    }
+    if (!newPassword) {
+      throw new HttpError(400, 'New password is required');
+    }
+
+    await changeUserPassword(sessionUser.studentNumber, currentPassword, newPassword);
+    res.status(200).json({ success: true, data: null, message: 'Password updated' });
+  } catch (error) {
+    next(error);
+  }
 };
