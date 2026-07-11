@@ -197,8 +197,10 @@ export const enrollStudent = async (
   }
 
   // Enrollments that originate from the exams platform must not be synced
-  // back to it — that is how the enrollment ping-pong loop starts.
-  if (!options.skipExternalSync) {
+  // back to it — that is how the enrollment ping-pong loop starts. Grade 8
+  // and 9 learners live only on the videos platform; the exams platform
+  // covers grades 10-12.
+  if (!options.skipExternalSync && cleanGrade >= 10) {
     await syncStudentToExternalSystem(createdStudent);
   }
 
