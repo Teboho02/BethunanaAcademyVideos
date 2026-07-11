@@ -42,9 +42,16 @@ const toStudent = (row: StudentRow): Student => ({
   updatedAt: new Date(row.updated_at).toISOString()
 });
 
-const buildStudentNumber = (): string => {
-  const prefix = Math.random() < 0.5 ? 2 : 3;
+const buildStudentNumber = (grade: StudentGrade): string => {
   const suffix = Math.floor(100000 + Math.random() * 900000);
+
+  // Grade 8 and 9 learners get G8/G9-prefixed numbers; grades 10-12 keep
+  // the original numeric format starting with 2 or 3.
+  if (grade === 8 || grade === 9) {
+    return `G${grade}${suffix}`;
+  }
+
+  const prefix = Math.random() < 0.5 ? 2 : 3;
   return `${prefix}${suffix}`;
 };
 
@@ -165,7 +172,7 @@ export const enrollStudent = async (
 
   // Retry on generated student number collisions.
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const studentNumber = buildStudentNumber();
+    const studentNumber = buildStudentNumber(cleanGrade);
     try {
       await withTransaction(async (tx) => {
         await tx.execute(
