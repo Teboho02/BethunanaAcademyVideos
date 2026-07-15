@@ -84,8 +84,18 @@ jobs:
             echo ">>> Installing root dependencies..."
             npm install
 
-            echo ">>> Building frontend..."
-            npm run build
+            # Build into a staging dir and swap it in with renames. vite empties
+            # its output dir at the START of the build, so building straight into
+            # ./dist — the directory the LIVE server serves from — makes every
+            # request 500 for the whole build (index.html is briefly gone, so the
+            # SPA fallback's res.sendFile fails). Staging keeps the live dist a
+            # complete build at all times; the swap gap is two renames (sub-ms).
+            echo ">>> Building frontend (staged, atomic swap)..."
+            rm -rf dist.new dist.old
+            npm run build -- --outDir dist.new --emptyOutDir
+            [ -d dist ] && mv dist dist.old
+            mv dist.new dist
+            rm -rf dist.old
 
             # -----------------------------
             # 5. INSTALL BACKEND DEPS
