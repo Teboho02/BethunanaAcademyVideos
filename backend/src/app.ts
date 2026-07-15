@@ -17,19 +17,35 @@ const frontendDistPath = path.resolve(appDir, '../../dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 const hasFrontendBuild = existsSync(frontendIndexPath);
 
-const resolveCorsOrigins = (): string[] | boolean => {
-  if (env.CORS_ORIGIN === '*') {
-    return true;
-  }
-
-  return env.CORS_ORIGIN.split(',')
+const explicitOrigins = new Set(
+  env.CORS_ORIGIN.split(',')
     .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+    .filter((item) => item.length > 0)
+);
+
+const corsOriginHandler = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void
+): void => {
+  if (env.CORS_ORIGIN === '*' || !origin) {
+    callback(null, true);
+    return;
+  }
+  try {
+    const host = new URL(origin).hostname;
+    if (explicitOrigins.has(origin) || host.endsWith('.devtunnels.ms')) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  } catch {
+    callback(new Error(`CORS: invalid origin ${origin}`));
+  }
 };
 
 app.use(
   cors({
-    origin: resolveCorsOrigins(),
+    origin: corsOriginHandler,
     credentials: true
   })
 );
