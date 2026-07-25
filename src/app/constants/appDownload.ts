@@ -3,6 +3,12 @@
 export const ANDROID_APK_URL =
   'https://pub-4821c2cbfdcb410aaca3f90cb13655ef.r2.dev/application-25c3b1d6-beb1-4406-93da-4e87f2cab147.apk';
 
+// Official app store listings.
+export const PLAY_STORE_URL =
+  'https://play.google.com/store/apps/details?id=za.co.bethunanaacademy.app';
+export const APP_STORE_URL =
+  'https://apps.apple.com/us/app/bethunanaacademy/id6784565840';
+
 export type MobilePlatform = 'ios' | 'android' | 'other';
 
 /** Best-effort device detection from the user agent (used to tailor the app promo). */
