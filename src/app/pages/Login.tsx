@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   AlertCircle,
@@ -30,7 +30,19 @@ export function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showMobileForm, setShowMobileForm] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState('');
   const avatar = '/person.jpg';
+
+  // The session guard redirects here with ?session=<reason> when a session ends.
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get('session');
+    if (reason === 'replaced') {
+      setSessionNotice('You were signed out because your account was signed in on another device.');
+    } else if (reason === 'expired') {
+      setSessionNotice('Your session ended. Please sign in again.');
+    }
+    if (reason) window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,6 +314,13 @@ export function Login({ onLogin }: LoginProps) {
                 />
               </div>
 
+              {sessionNotice && !error && (
+                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {sessionNotice}
+                </div>
+              )}
+
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -429,6 +448,13 @@ export function Login({ onLogin }: LoginProps) {
                     className="h-12 text-base"
                   />
                 </div>
+
+                {sessionNotice && !error && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {sessionNotice}
+                  </div>
+                )}
 
                 {error && (
                   <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">

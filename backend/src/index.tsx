@@ -2,7 +2,7 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { checkDbConnection } from './config/db.js';
 import { ensureMediaJobsTable } from './services/mediaJobs.service.js';
-import { ensurePasswordHashColumn } from './services/migrations.service.js';
+import { ensureActiveSessionIdColumn, ensurePasswordHashColumn } from './services/migrations.service.js';
 
 const startServer = async (): Promise<void> => {
   const dbHealth = await checkDbConnection();
@@ -11,6 +11,7 @@ const startServer = async (): Promise<void> => {
   }
   await ensureMediaJobsTable();
   await ensurePasswordHashColumn();
+  await ensureActiveSessionIdColumn();
   console.info('[backend] SQL Server connection verified.');
 
   app.listen(env.PORT, () => {

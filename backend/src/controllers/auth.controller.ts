@@ -11,6 +11,7 @@ import {
   changeUserPassword,
   getUserPasswordHash
 } from '../services/student.service.js';
+import { endSession, startSession } from '../services/session.service.js';
 import { HttpError } from '../types/index.js';
 
 export const loginHandler: RequestHandler = async (req, res, next) => {
@@ -38,19 +39,25 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
     }
 
     if (studentNumber.trim().toLowerCase() === env.ADMIN_STUDENT_NUMBER.toLowerCase()) {
-      issueSessionCookie(req, res, { role: 'admin', studentNumber: studentNumber.trim() });
+      // Start a fresh single active session, superseding any other device.
+      const sid = await startSession(studentNumber.trim());
+      const token = issueSessionCookie(req, res, { role: 'admin', studentNumber: studentNumber.trim(), sid });
       res.status(200).json({
         success: true,
         data: {
           role: 'admin',
-          studentNumber: studentNumber.trim()
+          studentNumber: studentNumber.trim(),
+          // Returned so the mobile app (which cannot use cookies) can send it
+          // as a Bearer token.
+          token
         }
       });
       return;
     }
 
     const student = await authenticateStudentByNumber(studentNumber);
-    issueSessionCookie(req, res, { role: 'student', studentNumber: student.studentNumber });
+    const sid = await startSession(student.studentNumber);
+    const token = issueSessionCookie(req, res, { role: 'student', studentNumber: student.studentNumber, sid });
     res.status(200).json({
       success: true,
       data: {
@@ -58,7 +65,8 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
         studentNumber: student.studentNumber,
         grade: student.grade,
         name: student.name,
-        surname: student.surname
+        surname: student.surname,
+        token
       }
     });
   } catch (error) {
@@ -66,7 +74,12 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const logoutHandler: RequestHandler = (_req, res) => {
+export const logoutHandler: RequestHandler = async (req, res) => {
+  // Best-effort: clear the account's active session so no lingering token works.
+  const user = getSessionUser(req);
+  if (user) {
+    try { await endSession(user.studentNumber); } catch { /* ignore */ }
+  }
   clearSessionCookie(res);
   res.status(200).json({ success: true, data: null, message: 'Signed out' });
 };

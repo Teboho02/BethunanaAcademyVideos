@@ -19,24 +19,27 @@ import {
   listQuestionsHandler,
   updateQuestionHandler
 } from '../controllers/videoQuestions.controller.js';
-import { requireAdmin } from '../middleware/auth.middleware.js';
+import { requireAdmin, requireSession } from '../middleware/auth.middleware.js';
 
 const videoRouter = Router();
 
-// Admin-only management endpoints. Streaming, thumbnails and watch progress
-// stay open for learners and the mobile app.
+// Admin-only management endpoints.
 videoRouter.post('/upload', requireAdmin, uploadVideoMiddleware, uploadVideoHandler);
 videoRouter.get('/analytics', requireAdmin, listVideoAnalyticsHandler);
 videoRouter.get('/:id/analytics', requireAdmin, getVideoAnalyticsHandler);
-videoRouter.get('/:id/progress', getWatchProgressHandler);
-videoRouter.post('/:id/progress', saveWatchProgressHandler);
-videoRouter.get('/:id/thumbnail', streamVideoThumbnailHandler);
-videoRouter.get('/:id/stream', streamVideoHandler);
 
-// AI practice questions. Listing + attempts are open to learners; generation
-// and editing are admin-only.
-videoRouter.get('/:id/questions', listQuestionsHandler);
-videoRouter.post('/:id/questions/attempt', attemptQuestionsHandler);
+// Learner endpoints now require a current single-device session (web sends the
+// cookie, mobile a Bearer token). Thumbnails stay open — they are not sensitive
+// and gating them would force auth headers onto every image request.
+videoRouter.get('/:id/progress', requireSession, getWatchProgressHandler);
+videoRouter.post('/:id/progress', requireSession, saveWatchProgressHandler);
+videoRouter.get('/:id/thumbnail', streamVideoThumbnailHandler);
+videoRouter.get('/:id/stream', requireSession, streamVideoHandler);
+
+// AI practice questions. Listing + attempts require a signed-in learner;
+// generation and editing are admin-only.
+videoRouter.get('/:id/questions', requireSession, listQuestionsHandler);
+videoRouter.post('/:id/questions/attempt', requireSession, attemptQuestionsHandler);
 videoRouter.get('/:id/questions/admin', requireAdmin, listAdminQuestionsHandler);
 videoRouter.post('/:id/questions/generate', requireAdmin, generateQuestionsHandler);
 videoRouter.put('/:id/questions/:questionId', requireAdmin, updateQuestionHandler);
