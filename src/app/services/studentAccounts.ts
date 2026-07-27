@@ -133,3 +133,28 @@ export async function deleteStudentAccount(studentId: string): Promise<void> {
     throw new Error(await parseErrorMessage(response));
   }
 }
+
+export interface BulkDeleteStudentsInput {
+  ids?: string[];
+  grade?: number;
+  all?: boolean;
+}
+
+/** Mass-deletes students by ids, by grade, or all. Returns how many were removed. */
+export async function bulkDeleteStudentAccounts(input: BulkDeleteStudentsInput): Promise<number> {
+  const response = await fetch(`${STUDENT_API_BASE}/bulk-delete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  const payload = (await response.json()) as { data?: { deleted?: number }; deleted?: number };
+  return Number(payload?.data?.deleted ?? payload?.deleted ?? 0);
+}

@@ -6,15 +6,19 @@ import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
+import { Checkbox } from '../../components/ui/checkbox';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import {
+  bulkDeleteStudentAccounts,
   deleteStudentAccount,
   deactivateStudentAccount,
   enrollStudent,
   fetchStudentAccounts,
 } from '../../services/studentAccounts';
 import type { StudentAccount } from '../../types/studentAccounts';
+
+const GRADE_OPTIONS = [8, 9, 10, 11, 12] as const;
 
 interface StudentFormData {
   name: string;
@@ -36,6 +40,9 @@ export function ManageStudents() {
   const [studentSubmitting, setStudentSubmitting] = useState(false);
   const [studentActionId, setStudentActionId] = useState<string | null>(null);
   const [studentHistorySearchQuery, setStudentHistorySearchQuery] = useState('');
+  const [gradeFilter, setGradeFilter] = useState<'all' | number>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const loadStudentHistory = async () => {
     setStudentHistoryLoading(true);
@@ -175,6 +182,10 @@ export function ManageStudents() {
   ];
   const normalizedStudentHistorySearch = studentHistorySearchQuery.trim().toLowerCase();
   const filteredStudentAccounts = studentAccounts.filter((student) => {
+    if (gradeFilter !== 'all' && student.grade !== gradeFilter) {
+      return false;
+    }
+
     if (!normalizedStudentHistorySearch) {
       return true;
     }
@@ -189,6 +200,85 @@ export function ManageStudents() {
     );
   });
 
+  // ── Selection ──
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allFilteredSelected =
+    filteredStudentAccounts.length > 0 &&
+    filteredStudentAccounts.every((s) => selectedIds.has(s.id));
+
+  const someFilteredSelected =
+    filteredStudentAccounts.some((s) => selectedIds.has(s.id)) && !allFilteredSelected;
+
+  const toggleAllFiltered = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredStudentAccounts.forEach((s) => next.delete(s.id));
+      else filteredStudentAccounts.forEach((s) => next.add(s.id));
+      return next;
+    });
+
+  const selectedCount = selectedIds.size;
+
+  // ── Bulk delete ──
+  const runBulkDelete = async (
+    input: { ids?: string[]; grade?: number; all?: boolean },
+    successNoun: string
+  ) => {
+    setStudentFormError('');
+    setStudentSuccessMessage('');
+    setBulkDeleting(true);
+    try {
+      const deleted = await bulkDeleteStudentAccounts(input);
+      await loadStudentHistory();
+      setSelectedIds(new Set());
+      setStudentSuccessMessage(`Deleted ${deleted} ${successNoun}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete students';
+      setStudentFormError(message);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedCount === 0) return;
+    const ok = window.confirm(
+      `Delete ${selectedCount} selected student${selectedCount !== 1 ? 's' : ''}? This cannot be undone.`
+    );
+    if (!ok) return;
+    void runBulkDelete(
+      { ids: [...selectedIds] },
+      `student${selectedCount !== 1 ? 's' : ''}`
+    );
+  };
+
+  const handleDeleteGrade = () => {
+    if (gradeFilter === 'all') return;
+    const count = studentAccounts.filter((s) => s.grade === gradeFilter).length;
+    const ok = window.confirm(
+      `Delete all ${count} student${count !== 1 ? 's' : ''} in Grade ${gradeFilter}? This cannot be undone.`
+    );
+    if (!ok) return;
+    void runBulkDelete({ grade: gradeFilter }, `Grade ${gradeFilter} student${count !== 1 ? 's' : ''}`);
+  };
+
+  const handleDeleteAll = () => {
+    const total = studentAccounts.length;
+    if (total === 0) return;
+    const typed = window.prompt(
+      `This permanently deletes ALL ${total} student accounts. Type DELETE to confirm.`
+    );
+    if (typed !== 'DELETE') return;
+    void runBulkDelete({ all: true }, `student${total !== 1 ? 's' : ''}`);
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-8">
       {/* Page header */}
@@ -197,16 +287,26 @@ export function ManageStudents() {
           <h1 className="text-3xl font-bold text-primary">Manage Students</h1>
           <p className="text-muted-foreground mt-1">Enroll students and manage accounts</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => void loadStudentHistory()}
-          disabled={studentHistoryLoading}
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${studentHistoryLoading ? 'animate-spin' : ''}`}
-          />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => void loadStudentHistory()}
+            disabled={studentHistoryLoading}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${studentHistoryLoading ? 'animate-spin' : ''}`}
+            />
+            Refresh
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAll}
+            disabled={bulkDeleting || studentAccounts.length === 0}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete All
+          </Button>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -328,21 +428,92 @@ export function ManageStudents() {
           <CardDescription>All enrolled student accounts from the backend</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <Label htmlFor="studentHistorySearch" className="sr-only">
-              Search students
-            </Label>
-            <Input
-              id="studentHistorySearch"
-              value={studentHistorySearchQuery}
-              onChange={(e) => setStudentHistorySearchQuery(e.target.value)}
-              placeholder="Search by student name, surname, or student number"
-            />
+          <div className="mb-4 flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <Label htmlFor="studentHistorySearch" className="sr-only">
+                Search students
+              </Label>
+              <Input
+                id="studentHistorySearch"
+                value={studentHistorySearchQuery}
+                onChange={(e) => setStudentHistorySearchQuery(e.target.value)}
+                placeholder="Search by student name, surname, or student number"
+              />
+            </div>
+            <Select
+              value={String(gradeFilter)}
+              onValueChange={(value) => setGradeFilter(value === 'all' ? 'all' : Number(value))}
+            >
+              <SelectTrigger className="sm:w-[180px]" aria-label="Filter by grade">
+                <SelectValue placeholder="All grades" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All grades</SelectItem>
+                {GRADE_OPTIONS.map((g) => (
+                  <SelectItem key={g} value={String(g)}>
+                    Grade {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Bulk actions */}
+          {(selectedCount > 0 || gradeFilter !== 'all') && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 px-4 py-3">
+              {selectedCount > 0 ? (
+                <>
+                  <span className="text-sm font-medium">{selectedCount} selected</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                    disabled={bulkDeleting}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedIds(new Set())}
+                    disabled={bulkDeleting}
+                  >
+                    Clear selection
+                  </Button>
+                </>
+              ) : (
+                gradeFilter !== 'all' && (
+                  <>
+                    <span className="text-sm text-muted-foreground">
+                      Grade {gradeFilter}: {studentAccounts.filter((s) => s.grade === gradeFilter).length} student(s)
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteGrade}
+                      disabled={bulkDeleting || studentAccounts.filter((s) => s.grade === gradeFilter).length === 0}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {bulkDeleting ? 'Deleting...' : `Delete all Grade ${gradeFilter}`}
+                    </Button>
+                  </>
+                )
+              )}
+            </div>
+          )}
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[44px]">
+                    <Checkbox
+                      checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
+                      onCheckedChange={toggleAllFiltered}
+                      disabled={filteredStudentAccounts.length === 0}
+                      aria-label="Select all students"
+                    />
+                  </TableHead>
                   <TableHead className="min-w-[140px]">Name</TableHead>
                   <TableHead className="min-w-[140px]">Surname</TableHead>
                   <TableHead className="min-w-[80px]">Grade</TableHead>
@@ -357,6 +528,7 @@ export function ManageStudents() {
                   <>
                     {[1, 2, 3].map((i) => (
                       <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-12" /></TableCell>
@@ -371,7 +543,7 @@ export function ManageStudents() {
 
                 {!studentHistoryLoading && studentAccounts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       No students generated yet.
                     </TableCell>
                   </TableRow>
@@ -381,7 +553,7 @@ export function ManageStudents() {
                   studentAccounts.length > 0 &&
                   filteredStudentAccounts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                         No students match your search.
                       </TableCell>
                     </TableRow>
@@ -391,7 +563,14 @@ export function ManageStudents() {
                   const deactivateActionId = `deactivate-${student.id}`;
                   const deleteActionId = `delete-${student.id}`;
                   return (
-                    <TableRow key={student.id}>
+                    <TableRow key={student.id} data-state={selectedIds.has(student.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(student.id)}
+                          onCheckedChange={() => toggleOne(student.id)}
+                          aria-label={`Select ${student.name} ${student.surname}`}
+                        />
+                      </TableCell>
                       <TableCell>{student.name}</TableCell>
                       <TableCell>{student.surname}</TableCell>
                       <TableCell>
