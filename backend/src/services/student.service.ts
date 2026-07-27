@@ -349,3 +349,56 @@ export const removeStudent = async (studentId: string): Promise<void> => {
     throw new HttpError(404, 'Student not found');
   }
 };
+
+export interface BulkDeleteStudentsInput {
+  ids?: string[];
+  grade?: number;
+  all?: boolean;
+}
+
+/**
+ * Mass-deletes student accounts. Exactly one mode is used per call, in this
+ * order of precedence: all -> grade -> ids. Deleting the users row cascades to
+ * the students profile (fk_students_user ON DELETE CASCADE). Count and delete
+ * run in one transaction so the reported number matches what was removed and
+ * cannot be skewed by cascade row counts. Returns the number of students
+ * deleted.
+ */
+export const bulkRemoveStudents = async (
+  input: BulkDeleteStudentsInput
+): Promise<number> => {
+  let whereClause = `role = 'student'`;
+  let params: unknown[] = [];
+
+  if (input.all) {
+    // whereClause already matches every student
+  } else if (input.grade !== undefined) {
+    const grade = assertStudentGrade(input.grade);
+    whereClause += ` AND grade_level = ?`;
+    params = [grade];
+  } else {
+    const ids = (input.ids ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.trim() !== ''
+    );
+    if (ids.length === 0) {
+      return 0;
+    }
+    const placeholders = ids.map(() => '?').join(', ');
+    whereClause += ` AND id IN (${placeholders})`;
+    params = ids;
+  }
+
+  return withTransaction(async (tx) => {
+    const countRows = await tx.queryRows<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM users WHERE ${whereClause}`,
+      params
+    );
+    const count = Number(countRows[0]?.n ?? 0);
+    if (count === 0) {
+      return 0;
+    }
+
+    await tx.execute(`DELETE FROM users WHERE ${whereClause}`, params);
+    return count;
+  });
+};

@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import {
+  bulkRemoveStudents,
   deactivateStudent,
   enrollStudent,
   listStudents,
@@ -85,6 +86,43 @@ export const deleteStudentHandler: RequestHandler = async (req, res, next) => {
       success: true,
       data: null,
       message: 'Student account deleted'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteStudentsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const all = body.all === true;
+
+    const gradeRaw = body.grade;
+    const grade =
+      typeof gradeRaw === 'number'
+        ? gradeRaw
+        : typeof gradeRaw === 'string' && gradeRaw.trim() !== ''
+          ? Number(gradeRaw)
+          : undefined;
+
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+      : undefined;
+
+    if (grade !== undefined && !Number.isFinite(grade)) {
+      throw new HttpError(400, 'Grade must be a number');
+    }
+
+    if (!all && grade === undefined && (!ids || ids.length === 0)) {
+      throw new HttpError(400, 'Provide ids, a grade, or all=true');
+    }
+
+    const deleted = await bulkRemoveStudents({ ids, grade, all });
+    res.status(200).json({
+      success: true,
+      data: { deleted },
+      message: `Deleted ${deleted} student${deleted !== 1 ? 's' : ''}`
     });
   } catch (error) {
     next(error);
