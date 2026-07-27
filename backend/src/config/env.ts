@@ -102,5 +102,16 @@ export const env = {
   JWT_SECRET: toNonEmptyString(process.env.JWT_SECRET, ''),
   // Shared secret for server-to-server enrollment sync with the exams
   // platform. Must match the exams platform's SyncSecret setting.
-  ENROLL_SYNC_SECRET: toNonEmptyString(process.env.ENROLL_SYNC_SECRET, '')
+  ENROLL_SYNC_SECRET: toNonEmptyString(process.env.ENROLL_SYNC_SECRET, ''),
+
+  // Grade 10-12 learners authenticate against the exams platform and watch
+  // videos here with that exams JWT (they have no separate videos session).
+  // These let this service verify an exams token for content access — they must
+  // match the exams platform's Jwt:Key / Jwt:Issuer / Jwt:Audience.
+  EXAMS_JWT_SECRET: toNonEmptyString(
+    process.env.EXAMS_JWT_SECRET,
+    'BethunanaAcademy_SuperSecretKey_ChangeInProd_2024'
+  ),
+  EXAMS_JWT_ISSUER: toNonEmptyString(process.env.EXAMS_JWT_ISSUER, 'BethunanaAPI'),
+  EXAMS_JWT_AUDIENCE: toNonEmptyString(process.env.EXAMS_JWT_AUDIENCE, 'BethunanaAcademyClient')
 } as const;

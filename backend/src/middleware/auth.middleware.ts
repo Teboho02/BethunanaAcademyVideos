@@ -97,18 +97,44 @@ const assertActiveSession = async (user: SessionUser, res: Response): Promise<bo
   return false;
 };
 
-// Requires any signed-in user (student or admin) with a still-current session.
+// Grade 10-12 learners have no videos session — they authenticate on the exams
+// platform and watch videos here with that exams JWT. Accept a valid exams
+// token as proof of a signed-in learner. Single-device for them is enforced on
+// the exams side (and the mobile app logs out globally when its exams session is
+// revoked), so no sid check is applied here.
+const hasValidExamsToken = (req: Request): boolean => {
+  const token = bearerToken(req);
+  if (!token) return false;
+  try {
+    jwt.verify(token, env.EXAMS_JWT_SECRET, {
+      issuer: env.EXAMS_JWT_ISSUER,
+      audience: env.EXAMS_JWT_AUDIENCE
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Requires a signed-in learner (or admin): a current videos session, or — for
+// grade 10-12 — a valid exams token.
 export const requireSession: RequestHandler = async (req, res, next) => {
   const user = getSessionUser(req);
-  if (!user) {
-    next(new HttpError(401, 'Sign in required'));
+  if (user) {
+    if (!(await assertActiveSession(user, res))) {
+      next(new HttpError(401, 'Signed in on another device'));
+      return;
+    }
+    next();
     return;
   }
-  if (!(await assertActiveSession(user, res))) {
-    next(new HttpError(401, 'Signed in on another device'));
+
+  if (hasValidExamsToken(req)) {
+    next();
     return;
   }
-  next();
+
+  next(new HttpError(401, 'Sign in required'));
 };
 
 export const requireAdmin: RequestHandler = async (req, res, next) => {
