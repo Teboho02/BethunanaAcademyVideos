@@ -27,9 +27,9 @@ export function Home({ user }: HomeProps) {
   const videos = catalog?.videos ?? [];
   const topics = catalog?.topics ?? [];
 
-  const fallbackGrade = grades[0] ?? 10;
-  const studentGrade = Number.isFinite(user.grade) ? Number(user.grade) : fallbackGrade;
-  const availableGrades = user.role === 'student' ? [studentGrade] : grades.length > 0 ? grades : [10];
+  // Everyone (students included) can browse and watch videos from every grade —
+  // no per-grade restriction.
+  const availableGrades = grades.length > 0 ? grades : [10];
   const effectiveGrade = availableGrades.includes(selectedGrade) ? selectedGrade : availableGrades[0];
   const visibleSubjects = (catalog?.subjects ?? []).filter((subject) => subject.grade === effectiveGrade);
 
@@ -52,26 +52,20 @@ export function Home({ user }: HomeProps) {
       </PageHero>
 
       <div className="container mx-auto px-4 py-8 lg:px-8 lg:py-12">
-        {/* Grade tabs */}
-        {user.role === 'admin' ? (
-          <Tabs
-            value={String(effectiveGrade)}
-            onValueChange={(value) => setSelectedGrade(Number(value))}
-            className="mb-8"
-          >
-            <TabsList>
-              {availableGrades.map((grade) => (
-                <TabsTrigger key={grade} value={String(grade)}>
-                  Grade {grade}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        ) : (
-          <div className="mb-8">
-            <Badge variant="outline">Grade {studentGrade}</Badge>
-          </div>
-        )}
+        {/* Grade tabs — available to everyone so all grades' videos can be viewed */}
+        <Tabs
+          value={String(effectiveGrade)}
+          onValueChange={(value) => setSelectedGrade(Number(value))}
+          className="mb-8"
+        >
+          <TabsList>
+            {availableGrades.map((grade) => (
+              <TabsTrigger key={grade} value={String(grade)}>
+                Grade {grade}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {loading && (
           <p className="mb-6 text-sm text-muted-foreground">Loading subjects...</p>
