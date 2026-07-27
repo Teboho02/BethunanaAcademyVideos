@@ -43,6 +43,10 @@ export function ManageStudents() {
   const [gradeFilter, setGradeFilter] = useState<'all' | number>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Delete controls stay hidden until the admin clicks "Delete Students".
+  const [manageMode, setManageMode] = useState(false);
+  const enterManageMode = () => { setSelectedIds(new Set()); setManageMode(true); };
+  const exitManageMode = () => { setManageMode(false); setSelectedIds(new Set()); };
 
   const loadStudentHistory = async () => {
     setStudentHistoryLoading(true);
@@ -298,14 +302,21 @@ export function ManageStudents() {
             />
             Refresh
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDeleteAll}
-            disabled={bulkDeleting || studentAccounts.length === 0}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete All
-          </Button>
+          {!manageMode ? (
+            <Button
+              variant="outline"
+              onClick={enterManageMode}
+              disabled={studentAccounts.length === 0}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Students
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={exitManageMode} disabled={bulkDeleting}>
+              Done
+            </Button>
+          )}
         </div>
       </div>
 
@@ -458,12 +469,17 @@ export function ManageStudents() {
             </Select>
           </div>
 
-          {/* Bulk actions */}
-          {(selectedCount > 0 || gradeFilter !== 'all') && (
-            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 px-4 py-3">
+          {/* Bulk actions — only while in selection mode */}
+          {manageMode && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                Selection mode
+              </span>
+
               {selectedCount > 0 ? (
                 <>
-                  <span className="text-sm font-medium">{selectedCount} selected</span>
+                  <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -483,37 +499,46 @@ export function ManageStudents() {
                   </Button>
                 </>
               ) : (
-                gradeFilter !== 'all' && (
-                  <>
-                    <span className="text-sm text-muted-foreground">
-                      Grade {gradeFilter}: {studentAccounts.filter((s) => s.grade === gradeFilter).length} student(s)
-                    </span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDeleteGrade}
-                      disabled={bulkDeleting || studentAccounts.filter((s) => s.grade === gradeFilter).length === 0}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {bulkDeleting ? 'Deleting...' : `Delete all Grade ${gradeFilter}`}
-                    </Button>
-                  </>
-                )
+                <span className="text-sm text-muted-foreground">
+                  Tick students to remove, or use the options on the right.
+                </span>
               )}
+
+              <div className="ml-auto flex flex-wrap items-center gap-4">
+                {gradeFilter !== 'all' &&
+                  studentAccounts.filter((s) => s.grade === gradeFilter).length > 0 && (
+                    <button
+                      onClick={handleDeleteGrade}
+                      disabled={bulkDeleting}
+                      className="text-sm font-semibold text-destructive hover:underline disabled:opacity-50"
+                    >
+                      Delete all Grade {gradeFilter}
+                    </button>
+                  )}
+                <button
+                  onClick={handleDeleteAll}
+                  disabled={bulkDeleting || studentAccounts.length === 0}
+                  className="text-sm font-semibold text-destructive hover:underline disabled:opacity-50"
+                >
+                  Delete all students
+                </button>
+              </div>
             </div>
           )}
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[44px]">
-                    <Checkbox
-                      checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
-                      onCheckedChange={toggleAllFiltered}
-                      disabled={filteredStudentAccounts.length === 0}
-                      aria-label="Select all students"
-                    />
-                  </TableHead>
+                  {manageMode && (
+                    <TableHead className="w-[44px]">
+                      <Checkbox
+                        checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
+                        onCheckedChange={toggleAllFiltered}
+                        disabled={filteredStudentAccounts.length === 0}
+                        aria-label="Select all students"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead className="min-w-[140px]">Name</TableHead>
                   <TableHead className="min-w-[140px]">Surname</TableHead>
                   <TableHead className="min-w-[80px]">Grade</TableHead>
@@ -528,7 +553,7 @@ export function ManageStudents() {
                   <>
                     {[1, 2, 3].map((i) => (
                       <TableRow key={i}>
-                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                        {manageMode && <TableCell><Skeleton className="h-4 w-4" /></TableCell>}
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-12" /></TableCell>
@@ -543,7 +568,7 @@ export function ManageStudents() {
 
                 {!studentHistoryLoading && studentAccounts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={manageMode ? 8 : 7} className="py-8 text-center text-muted-foreground">
                       No students generated yet.
                     </TableCell>
                   </TableRow>
@@ -553,7 +578,7 @@ export function ManageStudents() {
                   studentAccounts.length > 0 &&
                   filteredStudentAccounts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={manageMode ? 8 : 7} className="py-8 text-center text-muted-foreground">
                         No students match your search.
                       </TableCell>
                     </TableRow>
@@ -563,14 +588,16 @@ export function ManageStudents() {
                   const deactivateActionId = `deactivate-${student.id}`;
                   const deleteActionId = `delete-${student.id}`;
                   return (
-                    <TableRow key={student.id} data-state={selectedIds.has(student.id) ? 'selected' : undefined}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(student.id)}
-                          onCheckedChange={() => toggleOne(student.id)}
-                          aria-label={`Select ${student.name} ${student.surname}`}
-                        />
-                      </TableCell>
+                    <TableRow key={student.id} data-state={manageMode && selectedIds.has(student.id) ? 'selected' : undefined}>
+                      {manageMode && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(student.id)}
+                            onCheckedChange={() => toggleOne(student.id)}
+                            aria-label={`Select ${student.name} ${student.surname}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>{student.name}</TableCell>
                       <TableCell>{student.surname}</TableCell>
                       <TableCell>
@@ -601,15 +628,17 @@ export function ManageStudents() {
                             <UserX className="mr-2 h-4 w-4" />
                             {studentActionId === deactivateActionId ? 'Deactivating...' : 'Deactivate'}
                           </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={studentActionId === deleteActionId}
-                            onClick={() => void handleDeleteStudent(student)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {studentActionId === deleteActionId ? 'Deleting...' : 'Delete'}
-                          </Button>
+                          {manageMode && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={studentActionId === deleteActionId}
+                              onClick={() => void handleDeleteStudent(student)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {studentActionId === deleteActionId ? 'Deleting...' : 'Delete'}
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
