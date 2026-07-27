@@ -22,7 +22,7 @@ export const env = {
   // are never CORS-blocked.
   CORS_ORIGIN: toNonEmptyString(
     process.env.CORS_ORIGIN,
-    'http://localhost:5173,http://localhost:8081,https://bethunanaacademy.co.za'
+    'http://localhost:5173,http://localhost:8081,https://bethunanaacademy.co.za,https://www.bethunanaacademy.co.za'
   ),
 
   // Azure SQL Server, e.g. SQLSERVER_HOST=myserver.database.windows.net
@@ -39,6 +39,54 @@ export const env = {
   S3_SECRET_ACCESS_KEY: toNonEmptyString(process.env.S3_SECRET_ACCESS_KEY, ''),
   S3_ENDPOINT: toNonEmptyString(process.env.S3_ENDPOINT, ''),
   CDN_BASE_URL: toNonEmptyString(process.env.CDN_BASE_URL, ''),
+
+  // AI practice-question generation.
+  //
+  // Video storage (S3_*) is a Lightsail bucket whose keys are scoped to that
+  // bucket only — they cannot call Bedrock or Transcribe, and Transcribe cannot
+  // read a Lightsail bucket. So Bedrock + Transcribe use their own dedicated IAM
+  // credentials (AI_AWS_*) and a standard S3 bucket (AI_TRANSCRIBE_BUCKET) for
+  // the temporary audio/transcript. The worker downloads the video locally
+  // first, so the transcribe bucket is independent of where the video lives.
+  AI_QUESTIONS_ENABLED:
+    (process.env.AI_QUESTIONS_ENABLED ?? 'true').toLowerCase() !== 'false',
+  // When false, the worker does NOT auto-enqueue generation for existing videos
+  // on startup — useful for local testing so you can generate one video on
+  // demand (admin "Generate" button) instead of backfilling the whole catalog.
+  AI_QUESTIONS_BACKFILL_ON_STARTUP:
+    (process.env.AI_QUESTIONS_BACKFILL_ON_STARTUP ?? 'true').toLowerCase() !== 'false',
+  AI_QUESTIONS_PER_VIDEO: toNumber(process.env.AI_QUESTIONS_PER_VIDEO, 5),
+  AI_QUESTION_FRAME_COUNT: toNumber(process.env.AI_QUESTION_FRAME_COUNT, 8),
+  // When true, the admin "Generate" endpoint runs generation IN-PROCESS on the
+  // API instead of enqueuing to the shared media_jobs queue. Use this when the
+  // DB is shared with another backend whose worker runs older code and would
+  // otherwise claim and fail 'video_generate_questions' jobs it doesn't know.
+  AI_QUESTIONS_INLINE:
+    (process.env.AI_QUESTIONS_INLINE ?? 'false').toLowerCase() === 'true',
+
+  // Dedicated IAM credentials for Bedrock + Transcribe. Leave empty to use the
+  // default AWS credential chain (e.g. an instance role).
+  AI_AWS_ACCESS_KEY_ID: toNonEmptyString(process.env.AI_AWS_ACCESS_KEY_ID, ''),
+  AI_AWS_SECRET_ACCESS_KEY: toNonEmptyString(process.env.AI_AWS_SECRET_ACCESS_KEY, ''),
+
+  // AWS Transcribe. AI_TRANSCRIBE_BUCKET must be a standard S3 bucket in
+  // TRANSCRIBE_REGION owned by the same account as AI_AWS_* (NOT the Lightsail
+  // video bucket).
+  AI_TRANSCRIBE_BUCKET: toNonEmptyString(process.env.AI_TRANSCRIBE_BUCKET, ''),
+  TRANSCRIBE_REGION: toNonEmptyString(process.env.TRANSCRIBE_REGION, 'ap-southeast-1'),
+  TRANSCRIBE_LANGUAGE: toNonEmptyString(process.env.TRANSCRIBE_LANGUAGE, 'en-ZA'),
+  TRANSCRIBE_MAX_WAIT_MS: toNumber(process.env.TRANSCRIBE_MAX_WAIT_MS, 20 * 60 * 1000),
+  TRANSCRIBE_POLL_INTERVAL_MS: toNumber(process.env.TRANSCRIBE_POLL_INTERVAL_MS, 8000),
+
+  // Bedrock (Claude). Sonnet 4.5 is used because 4.6 requires a new Marketplace
+  // subscription this account cannot currently complete (billing). Verify ids
+  // with `aws bedrock list-inference-profiles --region <region>`.
+  BEDROCK_REGION: toNonEmptyString(process.env.BEDROCK_REGION, 'ap-southeast-1'),
+  BEDROCK_MODEL_ID: toNonEmptyString(
+    process.env.BEDROCK_MODEL_ID,
+    'global.anthropic.claude-sonnet-4-5-20250929-v1:0'
+  ),
+  BEDROCK_MAX_TOKENS: toNumber(process.env.BEDROCK_MAX_TOKENS, 4096),
 
   LOCAL_VIDEO_STORAGE_PATH: toNonEmptyString(
     process.env.LOCAL_VIDEO_STORAGE_PATH,

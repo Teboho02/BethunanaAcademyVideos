@@ -105,19 +105,101 @@ const runFfmpegToBuffer = (args: string[], stdin?: Buffer): Promise<Buffer> =>
 
 export const captureVideoFrameJpeg = async (
   videoPath: string,
-  atSeconds: number
+  atSeconds: number,
+  maxWidth = 1280
 ): Promise<Buffer> =>
   runFfmpegToBuffer([
     '-v', 'error',
     '-ss', String(Math.max(0, atSeconds)),
     '-i', videoPath,
     '-frames:v', '1',
-    '-vf', "scale='min(1280,iw)':-2",
+    '-vf', `scale='min(${Math.max(320, Math.round(maxWidth))},iw)':-2`,
     '-f', 'image2',
     '-c:v', 'mjpeg',
     '-q:v', '4',
     'pipe:1'
   ]);
+
+export interface SampledFrame {
+  atSeconds: number;
+  jpeg: Buffer;
+}
+
+/**
+ * Captures `count` JPEG frames evenly spaced across the video, skipping the very
+ * start/end (often black or title/credits). Frames are downscaled hard because
+ * they are sent to a multimodal model — smaller frames keep token cost sane.
+ * Frames that fail to decode (e.g. a corrupt seek point) are skipped rather than
+ * failing the whole batch.
+ */
+export const captureEvenlySpacedFrames = async (
+  videoPath: string,
+  durationSeconds: number,
+  count: number,
+  maxWidth = 768
+): Promise<SampledFrame[]> => {
+  const safeCount = Math.max(1, Math.floor(count));
+  const duration = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0;
+
+  // Sample within the middle ~90% of the runtime so we avoid intros/outros.
+  const start = duration > 0 ? duration * 0.05 : 1;
+  const end = duration > 0 ? duration * 0.95 : 1;
+  const span = Math.max(0, end - start);
+
+  const timestamps: number[] =
+    safeCount === 1 || span === 0
+      ? [duration > 0 ? duration / 2 : 1]
+      : Array.from({ length: safeCount }, (_, i) => start + (span * i) / (safeCount - 1));
+
+  const frames: SampledFrame[] = [];
+  for (const atSeconds of timestamps) {
+    try {
+      const jpeg = await captureVideoFrameJpeg(videoPath, atSeconds, maxWidth);
+      if (jpeg.length > 0) {
+        frames.push({ atSeconds, jpeg });
+      }
+    } catch {
+      // Skip unreadable frames; the model still gets the transcript + other frames.
+    }
+  }
+  return frames;
+};
+
+/**
+ * Extracts the audio track to a mono 16 kHz FLAC file for speech-to-text.
+ * FLAC is lossless, natively supported by this ffmpeg build, and accepted by
+ * AWS Transcribe. Mono/16 kHz keeps the upload small — that is all Transcribe
+ * needs. Returns false when the source has no audio stream.
+ */
+export const extractAudioToFlacFile = async (
+  videoPath: string,
+  outputPath: string
+): Promise<boolean> => {
+  try {
+    await execFileAsync(
+      ffmpegInstaller.path,
+      [
+        '-v', 'error',
+        '-i', videoPath,
+        '-vn',
+        '-ac', '1',
+        '-ar', '16000',
+        '-c:a', 'flac',
+        '-y',
+        outputPath
+      ],
+      { timeout: 10 * 60 * 1000, maxBuffer: 1024 * 1024 }
+    );
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // "does not contain any stream" / "Output file #0 does not contain" => no audio.
+    if (/does not contain any stream|Output file .* does not contain/i.test(message)) {
+      return false;
+    }
+    throw error;
+  }
+};
 
 /**
  * Decodes an image to grayscale pixels and reports whether it is (almost)

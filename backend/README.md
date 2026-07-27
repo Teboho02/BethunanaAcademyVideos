@@ -33,6 +33,53 @@ Copy `.env.example` to `.env` and set values:
 - `MEDIA_JOB_POLL_INTERVAL_MS` (worker poll interval, default 2000)
 - `MEDIA_JOB_RETRY_DELAY_MS` (retry backoff, default 10000)
 
+### AI practice questions (video -> transcript + frames -> Claude)
+
+The worker can auto-generate multiple-choice practice questions for each video.
+It downloads the video, extracts the audio, transcribes it with AWS Transcribe,
+samples frames with ffmpeg, and asks Claude on Amazon Bedrock to write
+questions. Only the transcript text and a few downscaled frames are sent to
+Bedrock.
+
+**Important — credentials.** Video storage (`S3_*`) is an AWS **Lightsail**
+bucket. Lightsail bucket keys are scoped to that bucket only: they cannot call
+Bedrock/Transcribe, and Transcribe cannot read a Lightsail bucket. So Bedrock +
+Transcribe use their own dedicated IAM credentials (`AI_AWS_*`) and a **standard**
+S3 bucket (`AI_TRANSCRIBE_BUCKET`) for the temporary audio/transcript. The worker
+downloads the video to local disk first, so that temp bucket is independent of
+where the video lives.
+
+- `AI_QUESTIONS_ENABLED` (default `true`; set `false` to disable generation and backfill)
+- `AI_QUESTIONS_BACKFILL_ON_STARTUP` (default `true`; set `false` to skip
+  auto-generating for existing videos on worker startup — useful locally so you
+  can generate one video on demand instead of the whole catalog)
+- `AI_QUESTIONS_PER_VIDEO` (default `5`)
+- `AI_QUESTION_FRAME_COUNT` (frames sampled per video, default `8`)
+- `AI_AWS_ACCESS_KEY_ID` / `AI_AWS_SECRET_ACCESS_KEY` (dedicated IAM user; empty = default AWS chain)
+- `AI_TRANSCRIBE_BUCKET` (standard S3 bucket in `TRANSCRIBE_REGION`, same account as `AI_AWS_*`)
+- `TRANSCRIBE_REGION` (default `ap-southeast-1`), `TRANSCRIBE_LANGUAGE` (default `en-ZA`)
+- `TRANSCRIBE_MAX_WAIT_MS` (default 20 min), `TRANSCRIBE_POLL_INTERVAL_MS` (default 8000)
+- `BEDROCK_REGION` (default `ap-southeast-1`)
+- `BEDROCK_MODEL_ID` (default `global.anthropic.claude-sonnet-4-5-20250929-v1:0`;
+  verify with `aws bedrock list-inference-profiles --region <region>`)
+- `BEDROCK_MAX_TOKENS` (default `4096`)
+
+The `AI_AWS_*` IAM principal needs:
+
+- `bedrock:InvokeModel` (attach the AWS-managed `AmazonBedrockLimitedAccess`
+  policy — it also grants the `aws-marketplace` actions Bedrock models require)
+- `transcribe:StartTranscriptionJob`, `transcribe:GetTranscriptionJob`
+- `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` on `AI_TRANSCRIBE_BUCKET/*`
+  and `s3:ListBucket` on the bucket
+
+> Note: Claude Sonnet **4.6** currently fails on this account with
+> `INVALID_PAYMENT_INSTRUMENT` (a Marketplace/billing issue, not IAM), so we use
+> Sonnet **4.5**. Fix the account's default payment method to switch to 4.6 via
+> `BEDROCK_MODEL_ID`.
+
+Existing videos are backfilled on worker startup; admins can also (re)generate
+per video via `POST /videos/:id/questions/generate`.
+
 ## Install and Run
 
 ```bash
