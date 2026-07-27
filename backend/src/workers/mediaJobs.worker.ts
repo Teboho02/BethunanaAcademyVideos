@@ -10,6 +10,7 @@ import {
   claimNextMediaJob,
   completeMediaJob,
   enqueueMissingMediaJobs,
+  enqueueMissingQuestionJobs,
   ensureMediaJobsTable,
   failMediaJob,
   type MediaJob
@@ -19,6 +20,8 @@ import {
   getVideoDurationSeconds,
   isMostlyBlackImage
 } from '../services/mediaProbe.service.js';
+import { generateQuestionsForVideo } from '../services/questionGeneration.service.js';
+import { ensureVideoQuestionsTable } from '../services/videoQuestions.service.js';
 import {
   resolveLocalVideoPath,
   saveThumbnailBufferToLocalStorage
@@ -212,9 +215,28 @@ const processVideoPostUploadJob = async (job: MediaJob): Promise<void> => {
   }
 };
 
+const processGenerateQuestionsJob = async (job: MediaJob): Promise<void> => {
+  if (!env.AI_QUESTIONS_ENABLED) {
+    console.info(
+      `[worker:${workerId}] AI question generation is disabled; skipping job ${job.id}.`
+    );
+    return;
+  }
+
+  const count = await generateQuestionsForVideo(job.videoId);
+  console.info(
+    `[worker:${workerId}] Generated ${count} question(s) for video ${job.videoId}.`
+  );
+};
+
 const processMediaJob = async (job: MediaJob): Promise<void> => {
   if (job.jobType === 'video_post_upload') {
     await processVideoPostUploadJob(job);
+    return;
+  }
+
+  if (job.jobType === 'video_generate_questions') {
+    await processGenerateQuestionsJob(job);
     return;
   }
 
@@ -229,6 +251,7 @@ const runWorker = async (): Promise<void> => {
 
   await ensureMediaJobsTable();
   await ensureVideoThumbnailColumns();
+  await ensureVideoQuestionsTable();
 
   try {
     const backfilled = await enqueueMissingMediaJobs();
@@ -240,6 +263,20 @@ const runWorker = async (): Promise<void> => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[worker:${workerId}] Backfill enqueue failed: ${message}`);
+  }
+
+  if (env.AI_QUESTIONS_ENABLED && env.AI_QUESTIONS_BACKFILL_ON_STARTUP) {
+    try {
+      const backfilledQuestions = await enqueueMissingQuestionJobs();
+      if (backfilledQuestions > 0) {
+        console.info(
+          `[worker:${workerId}] Enqueued ${backfilledQuestions} question-generation job(s) for videos without questions.`
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[worker:${workerId}] Question backfill enqueue failed: ${message}`);
+    }
   }
 
   console.info(`[worker:${workerId}] Started media jobs worker.`);

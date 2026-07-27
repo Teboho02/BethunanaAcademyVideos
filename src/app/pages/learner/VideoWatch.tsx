@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { PageHero } from '../../components/PageHero';
+import { PracticeQuestions } from '../../components/PracticeQuestions';
 import { useCatalog } from '../../hooks/useCatalog';
 import { getVideoProgress, saveVideoProgress } from '../../services/videoInsights';
 
@@ -199,11 +200,12 @@ export function VideoWatch({ user }: VideoWatchProps) {
               </div>
             </div>
 
-            {/* Tabs for Description / Lesson Details */}
+            {/* Tabs for Description / Lesson Details / Practice */}
             <Tabs defaultValue="description" className="w-full">
               <TabsList className="w-full justify-start">
                 <TabsTrigger value="description">Description</TabsTrigger>
                 <TabsTrigger value="details">Lesson Details</TabsTrigger>
+                <TabsTrigger value="practice">Practice Questions</TabsTrigger>
               </TabsList>
 
               <TabsContent value="description" className="mt-4">
@@ -243,6 +245,10 @@ export function VideoWatch({ user }: VideoWatchProps) {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="practice" className="mt-4">
+                <PracticeQuestions videoId={video.id} isAdmin={user.role === 'admin'} />
               </TabsContent>
             </Tabs>
           </div>

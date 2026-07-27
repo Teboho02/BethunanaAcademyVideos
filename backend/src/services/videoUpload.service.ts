@@ -4,7 +4,7 @@ import { execute, queryRows } from '../config/db.js';
 import type { UploadVideoInput, VideoAsset, VideoStorageType } from '../types/index.js';
 import { HttpError } from '../types/index.js';
 import { saveThumbnailToLocalStorage, saveVideoToLocalStorage } from './storage/localVideoStorage.service.js';
-import { enqueueVideoPostUploadJob } from './mediaJobs.service.js';
+import { enqueueQuestionGenerationJob, enqueueVideoPostUploadJob } from './mediaJobs.service.js';
 import { buildS3ThumbnailKey, buildS3VideoKey, uploadBufferToS3 } from './storage/s3.service.js';
 import { ensureVideoThumbnailColumns } from './videoSchema.service.js';
 
@@ -217,6 +217,17 @@ export const uploadVideoAndRegister = async (
     ]
   );
   await enqueueVideoPostUploadJob(videoId);
+
+  // Kick off AI practice-question generation as a separate job so a
+  // transcription/model failure never blocks duration + thumbnail processing.
+  if (env.AI_QUESTIONS_ENABLED) {
+    try {
+      await enqueueQuestionGenerationJob(videoId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[upload] Failed to enqueue question generation for ${videoId}: ${message}`);
+    }
+  }
 
   return {
     id: videoId,

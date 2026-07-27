@@ -1,7 +1,7 @@
 import { execute, queryRows } from '../config/db.js';
 
 export type MediaJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
-export type MediaJobType = 'video_post_upload';
+export type MediaJobType = 'video_post_upload' | 'video_generate_questions';
 
 interface MediaJobRow {
   id: number;
@@ -150,6 +150,59 @@ export const enqueueMissingMediaJobs = async (): Promise<number> => {
          SELECT 1
          FROM media_jobs j
          WHERE j.video_id = v.id
+           AND j.status IN ('queued', 'processing')
+       )`
+  );
+  return result.affectedRows;
+};
+
+/**
+ * Enqueues an AI question-generation job for a single video. Skips enqueueing
+ * when one is already queued or in flight so repeated admin clicks don't pile
+ * up duplicate work.
+ */
+export const enqueueQuestionGenerationJob = async (videoId: string): Promise<boolean> => {
+  const cleanVideoId = videoId.trim();
+  if (!cleanVideoId) {
+    throw new Error('Video id is required to enqueue question generation');
+  }
+
+  await ensureMediaJobsTable();
+  const result = await execute(
+    `INSERT INTO media_jobs
+       (job_type, video_id, payload_json, status, attempts, max_attempts, available_at)
+     SELECT 'video_generate_questions', ?, ?, 'queued', 0, 3, GETDATE()
+     WHERE NOT EXISTS (
+       SELECT 1 FROM media_jobs j
+       WHERE j.video_id = ?
+         AND j.job_type = 'video_generate_questions'
+         AND j.status IN ('queued', 'processing')
+     )`,
+    [cleanVideoId, JSON.stringify({ videoId: cleanVideoId }), cleanVideoId]
+  );
+  return result.affectedRows > 0;
+};
+
+/**
+ * Backfills question-generation jobs for published videos that have no
+ * questions yet and no queued/in-flight generation job. Lets the worker
+ * generate questions for videos uploaded before this feature existed.
+ */
+export const enqueueMissingQuestionJobs = async (): Promise<number> => {
+  await ensureMediaJobsTable();
+  const result = await execute(
+    `INSERT INTO media_jobs
+       (job_type, video_id, payload_json, status, attempts, max_attempts, available_at)
+     SELECT 'video_generate_questions', v.id, NULL, 'queued', 0, 3, GETDATE()
+     FROM videos v
+     WHERE v.status = 'published'
+       AND NOT EXISTS (
+         SELECT 1 FROM video_questions q WHERE q.video_id = v.id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM media_jobs j
+         WHERE j.video_id = v.id
+           AND j.job_type = 'video_generate_questions'
            AND j.status IN ('queued', 'processing')
        )`
   );

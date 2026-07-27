@@ -36,10 +36,12 @@ const corsOriginHandler = (
     if (explicitOrigins.has(origin) || host.endsWith('.devtunnels.ms')) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS: origin ${origin} not allowed`));
+      // Deny by omitting CORS headers rather than throwing: throwing turns
+      // every response (including same-origin static assets) into a 500.
+      callback(null, false);
     }
   } catch {
-    callback(new Error(`CORS: invalid origin ${origin}`));
+    callback(null, false);
   }
 };
 

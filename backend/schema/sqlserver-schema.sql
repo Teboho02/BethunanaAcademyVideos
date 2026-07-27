@@ -178,6 +178,34 @@ BEGIN
   CREATE INDEX idx_media_jobs_video ON dbo.media_jobs (video_id);
 END;
 
+-- AI-generated multiple-choice practice questions per video
+-- (also created automatically by the backend on startup)
+IF OBJECT_ID('dbo.video_questions', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.video_questions (
+    id BIGINT IDENTITY(1,1) NOT NULL,
+    video_id CHAR(36) NOT NULL,
+    position INT NOT NULL CONSTRAINT df_video_questions_position DEFAULT 0,
+    question_text NVARCHAR(1000) NOT NULL,
+    option_a NVARCHAR(500) NOT NULL,
+    option_b NVARCHAR(500) NOT NULL,
+    option_c NVARCHAR(500) NOT NULL,
+    option_d NVARCHAR(500) NOT NULL,
+    correct_index TINYINT NOT NULL,
+    explanation NVARCHAR(2000) NULL,
+    difficulty VARCHAR(20) NULL,
+    source VARCHAR(20) NOT NULL CONSTRAINT df_video_questions_source DEFAULT 'ai',
+    created_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_created_at DEFAULT GETDATE(),
+    updated_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_updated_at DEFAULT GETDATE(),
+    CONSTRAINT pk_video_questions PRIMARY KEY (id),
+    CONSTRAINT chk_video_questions_correct CHECK (correct_index BETWEEN 0 AND 3),
+    CONSTRAINT fk_video_questions_video
+      FOREIGN KEY (video_id) REFERENCES dbo.videos(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX idx_video_questions_video ON dbo.video_questions (video_id, position);
+END;
+
 -- ───────────────────────────────────────────────
 -- Seed data
 -- ───────────────────────────────────────────────
