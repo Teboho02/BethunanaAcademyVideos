@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { createRouter } from './routes';
+import { installSessionGuard } from './lib/sessionGuard';
+
+// Log the user out on any 401 (e.g. signed in on another device). Installed at
+// module load so it wraps fetch before the first request.
+installSessionGuard();
 
 interface User {
   username: string;

@@ -48,7 +48,9 @@ const corsOriginHandler = (
 app.use(
   cors({
     origin: corsOriginHandler,
-    credentials: true
+    credentials: true,
+    // Let the browser read the revoked marker on a cross-origin 401.
+    exposedHeaders: ['X-Session-Revoked']
   })
 );
 app.use(express.json({ limit: '20mb' }));

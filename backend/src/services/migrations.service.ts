@@ -39,3 +39,24 @@ export async function ensurePasswordHashColumn(): Promise<void> {
 
   console.info('[migrations] Added password_hash column and set default passwords.');
 }
+
+/**
+ * Ensures the active_session_id column exists on the users table (single active
+ * session enforcement). Safe to call on every startup.
+ */
+export async function ensureActiveSessionIdColumn(): Promise<void> {
+  const cols = await queryRows<ColumnRow>(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_CATALOG = DB_NAME()
+        AND TABLE_NAME   = 'users'
+        AND COLUMN_NAME  = 'active_session_id'`
+  );
+
+  if (cols.length > 0) {
+    return; // column already exists
+  }
+
+  await execute('ALTER TABLE users ADD active_session_id CHAR(36) NULL');
+  console.info('[migrations] Added active_session_id column.');
+}
