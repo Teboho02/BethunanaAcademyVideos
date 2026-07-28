@@ -115,3 +115,17 @@ export const env = {
   EXAMS_JWT_ISSUER: toNonEmptyString(process.env.EXAMS_JWT_ISSUER, 'BethunanaAPI'),
   EXAMS_JWT_AUDIENCE: toNonEmptyString(process.env.EXAMS_JWT_AUDIENCE, 'BethunanaAcademyClient')
 } as const;
+
+// The exams platform signs its real tokens with its deploy-time JWT_KEY, not
+// this placeholder. Left unset in production, EXAMS_JWT_SECRET silently keeps
+// this default and every grade 10-12 videos request fails with 401 "Sign in
+// required" (their valid exams token won't verify). Warn loudly so the misconfig
+// is visible in logs rather than surfacing as a mysterious auth failure.
+const EXAMS_JWT_PLACEHOLDER = 'BethunanaAcademy_SuperSecretKey_ChangeInProd_2024';
+if (env.NODE_ENV === 'production' && env.EXAMS_JWT_SECRET === EXAMS_JWT_PLACEHOLDER) {
+  console.warn(
+    '[env] EXAMS_JWT_SECRET is the placeholder default in production. Grade 10-12 ' +
+      'learners will get 401 "Sign in required" on videos. Set EXAMS_JWT_SECRET to ' +
+      "the exams platform's real JWT_KEY."
+  );
+}
