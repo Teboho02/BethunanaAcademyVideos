@@ -122,8 +122,23 @@ S3_SECRET_ACCESS_KEY=CHANGE_ME
 S3_BUCKET=bethunana
 S3_ENDPOINT=https://s3.ap-southeast-1.amazonaws.com
 CDN_BASE_URL=https://d2d8mtr7izdq47.cloudfront.net
+
+# Auth. JWT_SECRET signs G8/G9 sessions (set it so sessions survive restarts).
+# EXAMS_JWT_* let grade 10-12 learners watch videos with their exams token and
+# MUST match the exams platform's real JWT_KEY / JWT_ISSUER / JWT_AUDIENCE
+# EXACTLY. If EXAMS_JWT_SECRET stays on the placeholder while exams signs with
+# its real key, every grade 10-12 request 401s with "Sign in required".
+JWT_SECRET=CHANGE_ME
+ENROLL_SYNC_SECRET=CHANGE_ME
+EXAMS_JWT_SECRET=CHANGE_ME_MUST_MATCH_EXAMS_JWT_KEY
+EXAMS_JWT_ISSUER=BethunanaAPI
+EXAMS_JWT_AUDIENCE=BethunanaAcademyClient
 ENV
-  echo ">>> WROTE ${APP_DIR}/backend/.env — EDIT IT with real credentials!"
+  echo ">>> WROTE ${APP_DIR}/backend/.env — EDIT IT before the app is usable:"
+  echo ">>>   SQLSERVER_PASSWORD, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY"
+  echo ">>>   JWT_SECRET, ENROLL_SYNC_SECRET"
+  echo ">>>   EXAMS_JWT_SECRET  <-- MUST equal the exams platform's JWT_KEY"
+  echo ">>>   (grade 10-12 learners get 401 'Sign in required' until it matches)"
 fi
 
 # ------------------------------------------------------------
@@ -134,6 +149,21 @@ cd "${APP_DIR}/backend"
 pm2 start npm --name "BethunanaAcademy" -- run start || pm2 restart BethunanaAcademy
 pm2 save
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
+
+# ------------------------------------------------------------
+# Placeholder audit: on a rebuild the .env is fine to keep from the
+# persistent volume, but a fresh volume gets the CHANGE_ME template above.
+# Fail loudly here so an unedited secret can't silently ship — grade 10-12
+# video auth in particular breaks with no obvious error until fixed.
+# ------------------------------------------------------------
+if grep -q 'CHANGE_ME' "${APP_DIR}/backend/.env"; then
+  echo ""
+  echo "!!! WARNING: ${APP_DIR}/backend/.env still has placeholder values:"
+  grep -n 'CHANGE_ME' "${APP_DIR}/backend/.env" | sed 's/^/!!!   /'
+  echo "!!! Edit them, then: pm2 restart BethunanaAcademy"
+  echo "!!! Until EXAMS_JWT_SECRET matches the exams JWT_KEY, grade 10-12"
+  echo "!!! learners will get 401 'Sign in required' on the videos site."
+fi
 
 echo ">>> Done. Edit backend/.env, then: pm2 restart BethunanaAcademy"
 echo ">>> HTTPS activates automatically once DNS for ${DOMAIN} points at this instance."
