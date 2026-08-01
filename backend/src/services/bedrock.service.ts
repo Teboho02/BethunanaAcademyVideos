@@ -200,17 +200,23 @@ export const generateVideoQuestions = async (
 
   const messages: Message[] = [{ role: 'user', content: buildUserContent(input) }];
 
+  // Prompt caching: the system prompt and tool schema are identical for every
+  // video, so a cache point after each lets a bulk regeneration reuse them
+  // across calls (5-minute TTL) instead of re-billing those tokens per video.
+  // The per-video content (transcript + frames) comes after and is never cached.
+  // Bedrock silently ignores a cache point below the model's minimum cacheable
+  // size, so this is safe even for a short system prompt.
   const response = await getBedrockClient().send(
     new ConverseCommand({
       modelId: env.BEDROCK_MODEL_ID,
-      system: [{ text: buildSystemPrompt(input.count) }],
+      system: [{ text: buildSystemPrompt(input.count) }, { cachePoint: { type: 'default' } }],
       messages,
       inferenceConfig: {
         maxTokens: env.BEDROCK_MAX_TOKENS,
         temperature: 0.4
       },
       toolConfig: {
-        tools: [QUESTION_TOOL],
+        tools: [QUESTION_TOOL, { cachePoint: { type: 'default' } }],
         toolChoice: { tool: { name: 'submit_questions' } }
       }
     })

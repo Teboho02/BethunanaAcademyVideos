@@ -17,6 +17,7 @@ import {
   generateQuestionsHandler,
   listAdminQuestionsHandler,
   listQuestionsHandler,
+  regenerateAllQuestionsHandler,
   updateQuestionHandler
 } from '../controllers/videoQuestions.controller.js';
 import { requireAdmin, requireSession } from '../middleware/auth.middleware.js';
@@ -26,6 +27,9 @@ const videoRouter = Router();
 // Admin-only management endpoints.
 videoRouter.post('/upload', requireAdmin, uploadVideoMiddleware, uploadVideoHandler);
 videoRouter.get('/analytics', requireAdmin, listVideoAnalyticsHandler);
+// Bulk (re)generate questions for the whole catalog. Declared before the
+// `/:id/...` routes so its literal path is never captured as an id.
+videoRouter.post('/questions/regenerate-all', requireAdmin, regenerateAllQuestionsHandler);
 videoRouter.get('/:id/analytics', requireAdmin, getVideoAnalyticsHandler);
 
 // Learner endpoints now require a current single-device session (web sends the

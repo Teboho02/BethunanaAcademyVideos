@@ -1,7 +1,10 @@
 import type { RequestHandler } from 'express';
 import { HttpError } from '../types/index.js';
 import { env } from '../config/env.js';
-import { enqueueQuestionGenerationJob } from '../services/mediaJobs.service.js';
+import {
+  enqueueAllQuestionGenerationJobs,
+  enqueueQuestionGenerationJob
+} from '../services/mediaJobs.service.js';
 import { generateQuestionsForVideo } from '../services/questionGeneration.service.js';
 import {
   deleteQuestion,
@@ -112,6 +115,27 @@ export const generateQuestionsHandler: RequestHandler = async (req, res, next) =
       message: enqueued
         ? 'Question generation started'
         : 'Question generation is already in progress'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin-only: (re)generate questions for EVERY published video in one batch.
+// Enqueues one generation job per video onto the shared media_jobs queue; the
+// dedicated worker processes them sequentially. Existing AI questions are
+// overwritten per video, manual questions are preserved.
+export const regenerateAllQuestionsHandler: RequestHandler = async (_req, res, next) => {
+  try {
+    if (!env.AI_QUESTIONS_ENABLED) {
+      throw new HttpError(400, 'AI question generation is disabled');
+    }
+
+    const enqueued = await enqueueAllQuestionGenerationJobs();
+    res.status(202).json({
+      success: true,
+      data: { enqueued },
+      message: `Queued question generation for ${enqueued} video(s)`
     });
   } catch (error) {
     next(error);
