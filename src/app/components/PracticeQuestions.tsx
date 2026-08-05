@@ -213,6 +213,17 @@ export function PracticeQuestions({ videoId, isAdmin }: PracticeQuestionsProps) 
                 </Badge>
               </div>
 
+              {q.diagramSvg && (
+                <div
+                  className="flex justify-center rounded-md border bg-white p-3 [&_svg]:h-auto [&_svg]:max-w-full"
+                  aria-label={`Diagram for question ${index + 1}`}
+                  // Sanitised server-side in bedrock.service.ts (sanitizeDiagramSvg)
+                  // before storage: script/foreignObject/event-handlers/external
+                  // refs are stripped, so inline rendering here is safe.
+                  dangerouslySetInnerHTML={{ __html: q.diagramSvg }}
+                />
+              )}
+
               <RadioGroup
                 value={selected !== undefined ? String(selected) : undefined}
                 onValueChange={(value) =>

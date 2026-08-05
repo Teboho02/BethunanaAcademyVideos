@@ -6,6 +6,7 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   difficulty: string;
+  diagramSvg?: string | null;
 }
 
 export interface QuestionGenerationStatus {
