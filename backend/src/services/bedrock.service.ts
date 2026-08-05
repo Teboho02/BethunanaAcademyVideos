@@ -20,6 +20,10 @@ export interface GeneratedQuestion {
   correctIndex: number; // 0..3
   explanation: string;
   difficulty: QuestionDifficulty;
+  // Optional inline SVG diagram for questions that need a figure (geometry,
+  // trigonometry, graphs). Null when the question is purely textual. Always
+  // sanitised before it reaches this field — see sanitizeDiagramSvg.
+  svg: string | null;
 }
 
 export interface GenerateQuestionsInput {
@@ -93,6 +97,11 @@ const QUESTION_TOOL: Tool = {
                 difficulty: {
                   type: 'string',
                   enum: ['easy', 'medium', 'hard']
+                },
+                svg: {
+                  type: 'string',
+                  description:
+                    'OPTIONAL. A single self-contained inline SVG diagram for questions that need a figure to be answerable (geometry, trigonometry, coordinate graphs, number lines, etc.). Omit entirely for purely textual questions. Must be a valid <svg>...</svg> element with a viewBox, no <script>, no <foreignObject>, no external references, and no event handlers. Every label, length, and angle drawn MUST exactly match the numbers used in the question.'
                 }
               },
               required: ['question', 'options', 'correctIndex', 'explanation', 'difficulty']
@@ -120,6 +129,12 @@ const buildSystemPrompt = (count: number): string =>
     '- Vary difficulty across the set (from straightforward application to a multi-step problem).',
     '- Explanations should explain the reasoning/concept so the learner understands WHY the answer is correct. Do not refer to "the lesson" or "the video" in the explanation.',
     '- Use clear language appropriate for the learner grade level when given, and keep questions and options concise.',
+    'Diagrams:',
+    '- When a question can only be answered (or is much clearer) with a figure — geometry, trigonometry, coordinate graphs, number lines, angles, shapes — include a diagram in the "svg" field. For purely textual questions, omit "svg" entirely.',
+    '- The SVG must be ONE self-contained <svg> element with a viewBox (e.g. viewBox="0 0 300 220"), sized for roughly 300-400px wide. Use only basic shapes (line, polygon, polyline, circle, path, rect) and <text> for labels.',
+    '- CRITICAL: everything drawn must be mathematically consistent with the question. If the stem says a side is 3 and another is 4, the diagram must be labelled 3 and 4 and drawn to match. Never let the figure contradict the numbers.',
+    '- Do NOT reveal the answer in the diagram (e.g. do not label the unknown side with its value). Use a variable like x, θ, or "?" for what the learner must find.',
+    '- Keep diagrams clean: stroke="black" fill="none" for shapes, small readable font-size for labels, no external images, fonts, scripts, or links.',
     'Return the questions by calling the submit_questions tool.'
   ].join('\n');
 
@@ -174,6 +189,41 @@ const shuffleQuestionOptions = (q: GeneratedQuestion): GeneratedQuestion => {
   };
 };
 
+// SVG is an active document format and can carry XSS (script, event handlers,
+// external references, embedded HTML via foreignObject). We store and later
+// render the model's SVG inline, so it MUST be sanitised here before it is ever
+// persisted. Returns cleaned SVG, or null if the input isn't usable SVG.
+const MAX_SVG_CHARS = 20_000;
+
+const sanitizeDiagramSvg = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  let svg = value.trim();
+  if (!svg) return null;
+
+  // Must be a single root <svg> element.
+  if (!/^<svg[\s>]/i.test(svg) || !/<\/svg>\s*$/i.test(svg)) return null;
+
+  // Drop anything that can execute or pull in remote content.
+  svg = svg
+    .replace(/<\?xml[\s\S]*?\?>/gi, '') // XML prolog / processing instructions
+    .replace(/<!DOCTYPE[\s\S]*?>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '') // comments (can hide CDATA tricks)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+    .replace(/<(image|use|a|iframe|embed|object|animate|set)\b[\s\S]*?>/gi, '')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '') // onload=, onclick=, ...
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/\s(?:xlink:href|href)\s*=\s*"[^"]*"/gi, '') // external refs
+    .replace(/\s(?:xlink:href|href)\s*=\s*'[^']*'/gi, '')
+    .replace(/javascript:/gi, '');
+
+  // Reject anything still carrying an executable/remote payload after cleaning.
+  if (/<script|javascript:|on\w+\s*=/i.test(svg)) return null;
+  if (svg.length > MAX_SVG_CHARS) return null;
+
+  return svg;
+};
+
 const isValidQuestion = (value: unknown): value is GeneratedQuestion => {
   if (!value || typeof value !== 'object') return false;
   const q = value as Record<string, unknown>;
@@ -200,17 +250,23 @@ export const generateVideoQuestions = async (
 
   const messages: Message[] = [{ role: 'user', content: buildUserContent(input) }];
 
+  // Prompt caching: the system prompt and tool schema are identical for every
+  // video, so a cache point after each lets a bulk regeneration reuse them
+  // across calls (5-minute TTL) instead of re-billing those tokens per video.
+  // The per-video content (transcript + frames) comes after and is never cached.
+  // Bedrock silently ignores a cache point below the model's minimum cacheable
+  // size, so this is safe even for a short system prompt.
   const response = await getBedrockClient().send(
     new ConverseCommand({
       modelId: env.BEDROCK_MODEL_ID,
-      system: [{ text: buildSystemPrompt(input.count) }],
+      system: [{ text: buildSystemPrompt(input.count) }, { cachePoint: { type: 'default' } }],
       messages,
       inferenceConfig: {
         maxTokens: env.BEDROCK_MAX_TOKENS,
         temperature: 0.4
       },
       toolConfig: {
-        tools: [QUESTION_TOOL],
+        tools: [QUESTION_TOOL, { cachePoint: { type: 'default' } }],
         toolChoice: { tool: { name: 'submit_questions' } }
       }
     })
@@ -232,7 +288,8 @@ export const generateVideoQuestions = async (
       explanation: typeof q.explanation === 'string' ? q.explanation.trim() : '',
       difficulty: (['easy', 'medium', 'hard'].includes(q.difficulty)
         ? q.difficulty
-        : 'medium') as QuestionDifficulty
+        : 'medium') as QuestionDifficulty,
+      svg: sanitizeDiagramSvg((q as { svg?: unknown }).svg)
     }))
     .slice(0, input.count)
     .map(shuffleQuestionOptions);

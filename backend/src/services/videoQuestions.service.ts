@@ -40,6 +40,7 @@ export interface VideoQuestion {
   explanation: string;
   difficulty: string;
   source: string;
+  diagramSvg: string | null;
 }
 
 /** What learners receive — no correct answer or explanation leaked. */
@@ -49,6 +50,7 @@ export interface LearnerQuestion {
   question: string;
   options: string[];
   difficulty: string;
+  diagramSvg: string | null;
 }
 
 export interface GradedAnswer {
@@ -86,6 +88,7 @@ interface VideoQuestionRow {
   explanation: string | null;
   difficulty: string | null;
   source: string;
+  diagram_svg: string | null;
 }
 
 const rowToQuestion = (row: VideoQuestionRow): VideoQuestion => ({
@@ -97,7 +100,8 @@ const rowToQuestion = (row: VideoQuestionRow): VideoQuestion => ({
   correctIndex: Number(row.correct_index),
   explanation: row.explanation ?? '',
   difficulty: row.difficulty ?? 'medium',
-  source: row.source
+  source: row.source,
+  diagramSvg: row.diagram_svg ?? null
 });
 
 export const ensureVideoQuestionsTable = async (): Promise<void> => {
@@ -124,6 +128,7 @@ export const ensureVideoQuestionsTable = async (): Promise<void> => {
            explanation NVARCHAR(2000) NULL,
            difficulty VARCHAR(20) NULL,
            source VARCHAR(20) NOT NULL CONSTRAINT df_video_questions_source DEFAULT 'ai',
+           diagram_svg NVARCHAR(MAX) NULL,
            created_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_created_at DEFAULT GETDATE(),
            updated_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_updated_at DEFAULT GETDATE(),
            CONSTRAINT pk_video_questions PRIMARY KEY (id),
@@ -134,6 +139,12 @@ export const ensureVideoQuestionsTable = async (): Promise<void> => {
 
          CREATE INDEX idx_video_questions_video ON dbo.video_questions (video_id, position);
        END`
+    );
+
+    // Idempotent migration: the table pre-exists in prod without diagram_svg.
+    await execute(
+      `IF COL_LENGTH('dbo.video_questions', 'diagram_svg') IS NULL
+         ALTER TABLE dbo.video_questions ADD diagram_svg NVARCHAR(MAX) NULL;`
     );
     ensuredTable = true;
   })();
@@ -162,8 +173,8 @@ export const replaceGeneratedQuestions = async (
       await tx.execute(
         `INSERT INTO video_questions
            (video_id, position, question_text, option_a, option_b, option_c, option_d,
-            correct_index, explanation, difficulty, source)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai')`,
+            correct_index, explanation, difficulty, source, diagram_svg)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai', ?)`,
         [
           videoId,
           position,
@@ -174,7 +185,8 @@ export const replaceGeneratedQuestions = async (
           q.options[3],
           q.correctIndex,
           q.explanation,
-          q.difficulty
+          q.difficulty,
+          q.svg
         ]
       );
       position += 1;
@@ -186,7 +198,7 @@ export const listQuestionsForVideo = async (videoId: string): Promise<VideoQuest
   await ensureVideoQuestionsTable();
   const rows = await queryRows<VideoQuestionRow>(
     `SELECT id, video_id, position, question_text, option_a, option_b, option_c, option_d,
-            correct_index, explanation, difficulty, source
+            correct_index, explanation, difficulty, source, diagram_svg
      FROM video_questions
      WHERE video_id = ?
      ORDER BY position ASC, id ASC`,
@@ -204,7 +216,8 @@ export const listLearnerQuestionsForVideo = async (
     position: q.position,
     question: q.question,
     options: q.options,
-    difficulty: q.difficulty
+    difficulty: q.difficulty,
+    diagramSvg: q.diagramSvg
   }));
 };
 

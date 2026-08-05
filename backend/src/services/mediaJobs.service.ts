@@ -209,6 +209,31 @@ export const enqueueMissingQuestionJobs = async (): Promise<number> => {
   return result.affectedRows;
 };
 
+/**
+ * Enqueues a question-generation job for EVERY published video, regardless of
+ * whether it already has questions, skipping only videos with a queued or
+ * in-flight generation job. Used by the admin "regenerate all" action to
+ * refresh the whole catalog in one batch. The worker's replaceGeneratedQuestions
+ * overwrites the previous AI set per video while preserving manual questions.
+ */
+export const enqueueAllQuestionGenerationJobs = async (): Promise<number> => {
+  await ensureMediaJobsTable();
+  const result = await execute(
+    `INSERT INTO media_jobs
+       (job_type, video_id, payload_json, status, attempts, max_attempts, available_at)
+     SELECT 'video_generate_questions', v.id, NULL, 'queued', 0, 3, GETDATE()
+     FROM videos v
+     WHERE v.status = 'published'
+       AND NOT EXISTS (
+         SELECT 1 FROM media_jobs j
+         WHERE j.video_id = v.id
+           AND j.job_type = 'video_generate_questions'
+           AND j.status IN ('queued', 'processing')
+       )`
+  );
+  return result.affectedRows;
+};
+
 export const claimNextMediaJob = async (workerId: string): Promise<MediaJob | null> => {
   await ensureMediaJobsTable();
 

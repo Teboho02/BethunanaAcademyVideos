@@ -195,6 +195,7 @@ BEGIN
     explanation NVARCHAR(2000) NULL,
     difficulty VARCHAR(20) NULL,
     source VARCHAR(20) NOT NULL CONSTRAINT df_video_questions_source DEFAULT 'ai',
+    diagram_svg NVARCHAR(MAX) NULL,
     created_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_created_at DEFAULT GETDATE(),
     updated_at DATETIME2 NOT NULL CONSTRAINT df_video_questions_updated_at DEFAULT GETDATE(),
     CONSTRAINT pk_video_questions PRIMARY KEY (id),
@@ -205,6 +206,11 @@ BEGIN
 
   CREATE INDEX idx_video_questions_video ON dbo.video_questions (video_id, position);
 END;
+
+-- Idempotent migration for existing databases created before diagram_svg.
+IF OBJECT_ID('dbo.video_questions', 'U') IS NOT NULL
+   AND COL_LENGTH('dbo.video_questions', 'diagram_svg') IS NULL
+  ALTER TABLE dbo.video_questions ADD diagram_svg NVARCHAR(MAX) NULL;
 
 -- ───────────────────────────────────────────────
 -- Seed data

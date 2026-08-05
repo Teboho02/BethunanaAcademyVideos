@@ -55,7 +55,7 @@ export const env = {
   // demand (admin "Generate" button) instead of backfilling the whole catalog.
   AI_QUESTIONS_BACKFILL_ON_STARTUP:
     (process.env.AI_QUESTIONS_BACKFILL_ON_STARTUP ?? 'true').toLowerCase() !== 'false',
-  AI_QUESTIONS_PER_VIDEO: toNumber(process.env.AI_QUESTIONS_PER_VIDEO, 5),
+  AI_QUESTIONS_PER_VIDEO: toNumber(process.env.AI_QUESTIONS_PER_VIDEO, 15),
   AI_QUESTION_FRAME_COUNT: toNumber(process.env.AI_QUESTION_FRAME_COUNT, 8),
   // When true, the admin "Generate" endpoint runs generation IN-PROCESS on the
   // API instead of enqueuing to the shared media_jobs queue. Use this when the
@@ -86,7 +86,10 @@ export const env = {
     process.env.BEDROCK_MODEL_ID,
     'global.anthropic.claude-sonnet-4-5-20250929-v1:0'
   ),
-  BEDROCK_MAX_TOKENS: toNumber(process.env.BEDROCK_MAX_TOKENS, 4096),
+  // Sized for the full AI_QUESTIONS_PER_VIDEO set (15 questions x stem + 4
+  // options + explanation). 4096 truncates the tool call well before 15
+  // questions are emitted, so the model returns fewer than requested.
+  BEDROCK_MAX_TOKENS: toNumber(process.env.BEDROCK_MAX_TOKENS, 8192),
 
   LOCAL_VIDEO_STORAGE_PATH: toNonEmptyString(
     process.env.LOCAL_VIDEO_STORAGE_PATH,
